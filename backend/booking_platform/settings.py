@@ -158,7 +158,8 @@ CORS_ALLOW_HEADERS = ['*']
 CORS_ALLOW_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
 
 # CSRF trusted origins for admin
-CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='').split(',') if config('CSRF_TRUSTED_ORIGINS', default='') else []
+_csrf_default = 'https://theminddepartmentwebsite-production.up.railway.app,https://theminddepartmentwebsite.vercel.app'
+CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default=_csrf_default).split(',')
 
 # Email configuration
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
