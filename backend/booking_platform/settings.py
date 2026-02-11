@@ -32,6 +32,7 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,theminddepa
 # Application definition
 
 INSTALLED_APPS = [
+    "jazzmin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -175,3 +176,6 @@ EMAIL_TIMEOUT = 5  # 5 second timeout
 # Resend HTTP API (Railway blocks SMTP, Resend is free)
 RESEND_API_KEY = config('RESEND_API_KEY', default='')
 RESEND_FROM_EMAIL = config('RESEND_FROM_EMAIL', default='onboarding@resend.dev')
+
+# Jazzmin admin theme
+from .jazzmin_settings import JAZZMIN_SETTINGS, JAZZMIN_UI_TWEAKS

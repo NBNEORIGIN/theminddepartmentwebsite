@@ -1,12 +1,12 @@
 JAZZMIN_SETTINGS = {
     # title of the window (Will default to current_admin_site.site_title if absent or None)
-    "site_title": "House of Hair Admin",
+    "site_title": "The Mind Department",
 
     # Title on the login screen (19 chars max) (defaults to current_admin_site.site_header if absent or None)
-    "site_header": "House of Hair",
+    "site_header": "Mind Department",
 
     # Title on the brand (19 chars max) (defaults to current_admin_site.site_header if absent or None)
-    "site_brand": "House of Hair",
+    "site_brand": "Mind Department",
 
     # Logo to use for your site, must be present in static files, used for brand on top left
     "site_logo": "admin/img/logo.png",
@@ -21,10 +21,10 @@ JAZZMIN_SETTINGS = {
     "site_icon": "admin/img/favicon.png",
 
     # Welcome text on the login screen
-    "welcome_sign": "Welcome to House of Hair Management",
+    "welcome_sign": "Welcome to The Mind Department",
 
     # Copyright on the footer
-    "copyright": "House of Hair Alnwick",
+    "copyright": "The Mind Department 2026",
 
     # The model admin to search from the search bar, search bar omitted if excluded
     "search_model": "bookings.Client",
@@ -82,9 +82,19 @@ JAZZMIN_SETTINGS = {
         "auth.Group": "fas fa-users",
         "bookings.Booking": "fas fa-calendar-check",
         "bookings.Client": "fas fa-user-friends",
-        "bookings.Service": "fas fa-cut",
+        "bookings.Service": "fas fa-spa",
         "bookings.Staff": "fas fa-user-tie",
         "bookings.Session": "fas fa-chalkboard-teacher",
+        "bookings.BusinessHours": "fas fa-clock",
+        "bookings.StaffSchedule": "fas fa-calendar-alt",
+        "bookings.Closure": "fas fa-ban",
+        "bookings.StaffLeave": "fas fa-plane",
+        "bookings.IntakeProfile": "fas fa-clipboard-list",
+        "bookings.IntakeWellbeingDisclaimer": "fas fa-file-medical",
+        "bookings.ClassPackage": "fas fa-box",
+        "bookings.ClientCredit": "fas fa-coins",
+        "bookings.PaymentTransaction": "fas fa-credit-card",
+        "core.SiteConfig": "fas fa-cog",
     },
     # Icons that are used when one is not manually specified
     "default_icon_parents": "fas fa-chevron-circle-right",
@@ -124,15 +134,15 @@ JAZZMIN_UI_TWEAKS = {
     "footer_small_text": False,
     "body_small_text": False,
     "brand_small_text": False,
-    "brand_colour": "navbar-brown",
+    "brand_colour": "navbar-success",
     "accent": "accent-olive",
-    "navbar": "navbar-brown navbar-dark",
+    "navbar": "navbar-success navbar-dark",
     "no_navbar_border": False,
     "navbar_fixed": True,
     "layout_boxed": False,
     "footer_fixed": False,
     "sidebar_fixed": True,
-    "sidebar": "sidebar-dark-brown",
+    "sidebar": "sidebar-dark-olive",
     "sidebar_nav_small_text": False,
     "sidebar_disable_expand": False,
     "sidebar_nav_child_indent": False,
