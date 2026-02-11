@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "core",
     "bookings",
+    "compliance",
 ]
 
 MIDDLEWARE = [
@@ -182,6 +183,11 @@ EMAIL_TIMEOUT = 5  # 5 second timeout
 # Resend HTTP API (Railway blocks SMTP, Resend is free)
 RESEND_API_KEY = config('RESEND_API_KEY', default='')
 RESEND_FROM_EMAIL = config('RESEND_FROM_EMAIL', default='onboarding@resend.dev')
+
+# Stripe payments
+STRIPE_SECRET_KEY = config('STRIPE_SECRET_KEY', default='')
+STRIPE_WEBHOOK_SECRET = config('STRIPE_WEBHOOK_SECRET', default='')
+FRONTEND_URL = config('FRONTEND_URL', default='https://theminddepartmentwebsite.vercel.app')
 
 # Jazzmin admin theme
 from .jazzmin_settings import JAZZMIN_SETTINGS, JAZZMIN_UI_TWEAKS

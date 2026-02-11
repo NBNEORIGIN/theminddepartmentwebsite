@@ -45,16 +45,28 @@ export default function CompactBookingPage() {
   const [availableSlots, setAvailableSlots] = useState<string[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
 
+  const [submitting, setSubmitting] = useState(false)
+  const [paymentStatus, setPaymentStatus] = useState<string>('')
+
   useEffect(() => {
     fetchData()
     const urlParams = new URLSearchParams(window.location.search)
     const emailParam = urlParams.get('email')
     const intakeComplete = urlParams.get('intake_complete')
+    const payment = urlParams.get('payment')
+    const bookingId = urlParams.get('booking_id')
     if (emailParam) {
       setCustomerEmail(emailParam)
-      if (intakeComplete === 'true') {
-        window.history.replaceState({}, '', '/booking')
-      }
+    }
+    if (payment === 'success' && bookingId) {
+      setBookingComplete(true)
+      setPaymentStatus('success')
+      window.history.replaceState({}, '', '/booking')
+    } else if (payment === 'cancelled') {
+      setError('Payment was cancelled. Your booking has not been confirmed. Please try again.')
+      window.history.replaceState({}, '', '/booking')
+    } else if (intakeComplete === 'true') {
+      window.history.replaceState({}, '', '/booking')
     }
   }, [])
 
@@ -161,25 +173,27 @@ export default function CompactBookingPage() {
       return
     }
 
+    setSubmitting(true)
+
     try {
       // Check intake form status
       const intakeCheckRes = await fetch(`${API_BASE}/intake/status/?email=${encodeURIComponent(customerEmail)}`)
       if (intakeCheckRes.ok) {
         const intakeStatus = await intakeCheckRes.json()
         if (!intakeStatus.is_valid_for_booking) {
-          alert('Please complete the intake form before booking.')
+          setSubmitting(false)
           window.location.href = `/intake?email=${encodeURIComponent(customerEmail)}&return=booking`
           return
         }
       } else {
-        alert('Please complete the intake form before booking.')
+        setSubmitting(false)
         window.location.href = `/intake?email=${encodeURIComponent(customerEmail)}&return=booking`
         return
       }
 
       const bookingData = {
-        service: selectedService.id,
-        staff: selectedStaff.id,
+        service_id: selectedService.id,
+        staff_id: selectedStaff.id,
         date: format(selectedDate, 'yyyy-MM-dd'),
         time: selectedTime,
         client_name: customerName,
@@ -187,17 +201,33 @@ export default function CompactBookingPage() {
         client_phone: customerPhone,
         notes: notes,
       }
-      
-      const response = await fetch(`${API_BASE}/bookings/`, {
+
+      // Use Stripe Checkout for paid services
+      const response = await fetch(`${API_BASE}/checkout/create/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bookingData),
       })
 
-      if (!response.ok) throw new Error('Failed to create booking')
-      setBookingComplete(true)
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        throw new Error(errData.error || 'Failed to create booking')
+      }
+
+      const result = await response.json()
+
+      if (result.free) {
+        // Free service — confirmed immediately
+        setBookingComplete(true)
+      } else if (result.checkout_url) {
+        // Paid service — redirect to Stripe Checkout
+        window.location.href = result.checkout_url
+      } else {
+        throw new Error('Unexpected response from server')
+      }
     } catch (err: any) {
       setError(err.message)
+      setSubmitting(false)
     }
   }
 
@@ -408,9 +438,9 @@ export default function CompactBookingPage() {
           <button
             className="submit-button"
             onClick={handleSubmit}
-            disabled={!consent || !customerName || !customerEmail || !customerPhone}
+            disabled={submitting || !consent || !customerName || !customerEmail || !customerPhone}
           >
-            Confirm Booking
+            {submitting ? 'Processing...' : Number(selectedService.price) > 0 ? `Pay \u00A3${selectedService.price} & Confirm` : 'Confirm Booking'}
           </button>
         </div>
       )}

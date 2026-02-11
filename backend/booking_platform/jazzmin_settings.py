@@ -95,6 +95,11 @@ JAZZMIN_SETTINGS = {
         "bookings.ClientCredit": "fas fa-coins",
         "bookings.PaymentTransaction": "fas fa-credit-card",
         "core.SiteConfig": "fas fa-cog",
+        "compliance": "fas fa-hard-hat",
+        "compliance.IncidentReport": "fas fa-exclamation-triangle",
+        "compliance.IncidentPhoto": "fas fa-camera",
+        "compliance.SignOff": "fas fa-check-double",
+        "compliance.RAMSDocument": "fas fa-file-alt",
     },
     # Icons that are used when one is not manually specified
     "default_icon_parents": "fas fa-chevron-circle-right",

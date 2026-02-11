@@ -22,6 +22,7 @@ from bookings.api_views import ServiceViewSet, StaffViewSet, BookingViewSet, Cli
 from bookings.views_schedule import BusinessHoursViewSet, StaffScheduleViewSet, ClosureViewSet, StaffLeaveViewSet
 from bookings.views_intake import IntakeProfileViewSet, IntakeWellbeingDisclaimerViewSet
 from bookings.views_payment import ClassPackageViewSet, ClientCreditViewSet, PaymentIntegrationViewSet
+from bookings.views_stripe import create_checkout_session, stripe_webhook
 
 router = DefaultRouter()
 router.register(r'services', ServiceViewSet)
@@ -42,5 +43,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('api/', include('core.api_urls')),
+    path('api/checkout/create/', create_checkout_session, name='checkout-create'),
+    path('api/checkout/webhook/', stripe_webhook, name='stripe-webhook'),
     path('', include('core.urls')),
 ]
