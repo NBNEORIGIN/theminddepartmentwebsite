@@ -9,16 +9,16 @@ JAZZMIN_SETTINGS = {
     "site_brand": "Mind Department",
 
     # Logo to use for your site, must be present in static files, used for brand on top left
-    "site_logo": "admin/img/logo.png",
+    "site_logo": "admin/img/logo.webp",
 
     # Logo to use for your site, must be present in static files, used for login form logo (defaults to site_logo)
-    "login_logo": "admin/img/logo.png",
+    "login_logo": "admin/img/logo.webp",
 
     # CSS classes that are applied to the logo above
-    "site_logo_classes": "img-circle",
+    "site_logo_classes": "",
 
     # Relative path to a favicon for your site, will default to site_logo if absent (ideally 32x32 px)
-    "site_icon": "admin/img/favicon.png",
+    "site_icon": "admin/img/logo.webp",
 
     # Welcome text on the login screen
     "welcome_sign": "Welcome to The Mind Department",
