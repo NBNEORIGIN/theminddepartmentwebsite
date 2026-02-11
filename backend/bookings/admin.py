@@ -138,9 +138,17 @@ class BookingAdmin(admin.ModelAdmin):
     mark_as_completed.short_description = 'Mark selected as completed'
     
     def mark_as_cancelled(self, request, queryset):
-        updated = queryset.update(status='cancelled')
-        self.message_user(request, f'{updated} booking(s) marked as cancelled.')
-    mark_as_cancelled.short_description = 'Mark selected as cancelled'
+        count = 0
+        for booking in queryset.exclude(status='cancelled'):
+            booking.status = 'cancelled'
+            booking.payment_status = 'refunded'
+            booking.save()
+            count += 1
+        self.message_user(
+            request,
+            f'{count} booking(s) cancelled. The time slot(s) are now available for new bookings.'
+        )
+    mark_as_cancelled.short_description = 'Cancel selected bookings (frees time slots)'
 
 
 @admin.register(Session)

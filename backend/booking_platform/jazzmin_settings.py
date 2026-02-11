@@ -9,10 +9,10 @@ JAZZMIN_SETTINGS = {
     "site_brand": "Mind Department",
 
     # Logo to use for your site, must be present in static files, used for brand on top left
-    "site_logo": "admin/img/logo.webp",
+    "site_logo": None,
 
     # Logo to use for your site, must be present in static files, used for login form logo (defaults to site_logo)
-    "login_logo": "admin/img/logo.webp",
+    "login_logo": None,
 
     # CSS classes that are applied to the logo above
     "site_logo_classes": "",
