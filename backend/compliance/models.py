@@ -60,6 +60,169 @@ class SignOff(models.Model):
         return f"Sign-off by {signer} on {self.incident.title}"
 
 
+class RiskAssessment(models.Model):
+    STATUS_CHOICES = [('CURRENT', 'Current'), ('REVIEW_DUE', 'Review Due'), ('EXPIRED', 'Expired'), ('DRAFT', 'Draft')]
+
+    title = models.CharField(max_length=255)
+    site_area = models.CharField(max_length=255, help_text='Area or location assessed')
+    assessor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='assessments')
+    assessment_date = models.DateField()
+    review_date = models.DateField(help_text='Next review due date')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='CURRENT', db_index=True)
+    description = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-assessment_date']
+        verbose_name = 'Risk Assessment'
+        verbose_name_plural = 'Risk Assessments'
+
+    def __str__(self):
+        return f"{self.title} — {self.site_area}"
+
+    @property
+    def findings_count(self):
+        return self.findings.count()
+
+    @property
+    def high_risk_count(self):
+        return self.findings.filter(severity__in=['HIGH', 'CRITICAL']).count()
+
+    @property
+    def is_review_due(self):
+        from django.utils import timezone
+        return self.review_date <= timezone.now().date()
+
+
+class HazardFinding(models.Model):
+    SEVERITY_CHOICES = [('LOW', 'Low'), ('MEDIUM', 'Medium'), ('HIGH', 'High'), ('CRITICAL', 'Critical')]
+    STATUS_CHOICES = [('OPEN', 'Open'), ('IN_PROGRESS', 'In Progress'), ('RESOLVED', 'Resolved'), ('ACCEPTED', 'Risk Accepted')]
+
+    assessment = models.ForeignKey(RiskAssessment, on_delete=models.CASCADE, related_name='findings')
+    category = models.CharField(max_length=255, help_text='e.g. Fire Safety, Slips/Trips, Chemical Handling')
+    description = models.TextField()
+    severity = models.CharField(max_length=20, choices=SEVERITY_CHOICES, default='MEDIUM', db_index=True)
+    confidence = models.FloatField(default=1.0, help_text='Confidence level 0.0–1.0')
+    control_measures = models.TextField(blank=True, default='', help_text='Control measures, one per line')
+    regulatory_ref = models.CharField(max_length=255, blank=True, default='', help_text='e.g. HSE INDG225, COSHH Reg 7')
+    evidence_url = models.URLField(blank=True, default='')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='OPEN', db_index=True)
+    assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_findings')
+    due_date = models.DateField(null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Hazard Finding'
+        verbose_name_plural = 'Hazard Findings'
+
+    def __str__(self):
+        return f"[{self.get_severity_display()}] {self.category} — {self.description[:60]}"
+
+
+class Equipment(models.Model):
+    STATUS_CHOICES = [('OK', 'OK'), ('DUE_SOON', 'Inspection Due Soon'), ('OVERDUE', 'Overdue'), ('OUT_OF_SERVICE', 'Out of Service')]
+    CATEGORY_CHOICES = [
+        ('FIRE_SAFETY', 'Fire Safety'),
+        ('FIRST_AID', 'First Aid'),
+        ('ELECTRICAL', 'Electrical'),
+        ('VENTILATION', 'Ventilation'),
+        ('SECURITY', 'Security'),
+        ('WELLNESS', 'Wellness Equipment'),
+        ('OTHER', 'Other'),
+    ]
+
+    name = models.CharField(max_length=255)
+    location = models.CharField(max_length=255)
+    category = models.CharField(max_length=30, choices=CATEGORY_CHOICES, default='OTHER', db_index=True)
+    serial_number = models.CharField(max_length=100, blank=True, default='')
+    last_inspection = models.DateField(null=True, blank=True)
+    next_inspection = models.DateField(null=True, blank=True, db_index=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='OK', db_index=True)
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['next_inspection']
+        verbose_name = 'Equipment'
+        verbose_name_plural = 'Equipment'
+
+    def __str__(self):
+        return f"{self.name} — {self.location}"
+
+    @property
+    def is_overdue(self):
+        if not self.next_inspection:
+            return False
+        from django.utils import timezone
+        return self.next_inspection < timezone.now().date()
+
+    def save(self, *args, **kwargs):
+        # Auto-update status based on inspection dates
+        if self.next_inspection:
+            from django.utils import timezone
+            from datetime import timedelta
+            today = timezone.now().date()
+            if self.next_inspection < today:
+                self.status = 'OVERDUE'
+            elif self.next_inspection <= today + timedelta(days=30):
+                self.status = 'DUE_SOON'
+        super().save(*args, **kwargs)
+
+
+class EquipmentInspection(models.Model):
+    RESULT_CHOICES = [('PASS', 'Pass'), ('FAIL', 'Fail'), ('ADVISORY', 'Advisory')]
+
+    equipment = models.ForeignKey(Equipment, on_delete=models.CASCADE, related_name='inspections')
+    inspection_date = models.DateField()
+    inspector = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    result = models.CharField(max_length=20, choices=RESULT_CHOICES, default='PASS')
+    notes = models.TextField(blank=True, default='')
+    next_due = models.DateField(null=True, blank=True, help_text='Sets next inspection date on equipment')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-inspection_date']
+        verbose_name = 'Equipment Inspection'
+        verbose_name_plural = 'Equipment Inspections'
+
+    def __str__(self):
+        return f"{self.equipment.name} — {self.inspection_date} ({self.get_result_display()})"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Update equipment inspection dates
+        self.equipment.last_inspection = self.inspection_date
+        if self.next_due:
+            self.equipment.next_inspection = self.next_due
+        self.equipment.save()
+
+
+class ComplianceCategory(models.Model):
+    """Categories for compliance scoring (e.g. Fire Safety, Chemical Handling)"""
+    name = models.CharField(max_length=255, unique=True)
+    max_score = models.IntegerField(default=10)
+    current_score = models.IntegerField(default=0)
+    notes = models.TextField(blank=True, default='')
+    order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['order', 'name']
+        verbose_name = 'Compliance Category'
+        verbose_name_plural = 'Compliance Categories'
+
+    def __str__(self):
+        return f"{self.name} ({self.current_score}/{self.max_score})"
+
+    @property
+    def percentage(self):
+        return round((self.current_score / self.max_score) * 100) if self.max_score > 0 else 0
+
+
 class RAMSDocument(models.Model):
     STATUS_CHOICES = [('DRAFT', 'Draft'), ('ACTIVE', 'Active'), ('EXPIRED', 'Expired'), ('ARCHIVED', 'Archived')]
 

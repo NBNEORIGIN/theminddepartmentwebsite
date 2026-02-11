@@ -99,6 +99,11 @@ JAZZMIN_SETTINGS = {
         "compliance.IncidentReport": "fas fa-exclamation-triangle",
         "compliance.IncidentPhoto": "fas fa-camera",
         "compliance.SignOff": "fas fa-check-double",
+        "compliance.RiskAssessment": "fas fa-clipboard-check",
+        "compliance.HazardFinding": "fas fa-search",
+        "compliance.Equipment": "fas fa-tools",
+        "compliance.EquipmentInspection": "fas fa-wrench",
+        "compliance.ComplianceCategory": "fas fa-chart-bar",
         "compliance.RAMSDocument": "fas fa-file-alt",
     },
     # Icons that are used when one is not manually specified
