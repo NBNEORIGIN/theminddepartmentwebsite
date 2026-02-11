@@ -13,6 +13,7 @@ from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from .models import Booking, Client, Service, Staff
+from .models_payment import PaymentTransaction
 
 
 @api_view(['POST'])
@@ -136,6 +137,21 @@ def create_checkout_session(request):
         booking.payment_amount = service.price
         booking.save()
         
+        # Create pending payment transaction
+        PaymentTransaction.objects.create(
+            client=client,
+            transaction_type='single',
+            status='pending',
+            payment_system_id=checkout_session.id,
+            amount=service.price,
+            currency='GBP',
+            payment_metadata={
+                'booking_id': booking.id,
+                'service': service.name,
+                'staff': staff_member.name,
+            },
+        )
+        
         return Response({
             'checkout_url': checkout_session.url,
             'session_id': checkout_session.id,
@@ -178,14 +194,43 @@ def stripe_webhook(request):
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
         booking_id = session.get('metadata', {}).get('booking_id')
+        payment_intent_id = session.get('payment_intent', session.get('id', ''))
+        amount_total = session.get('amount_total', 0)  # in pence
         
         if booking_id:
             try:
                 booking = Booking.objects.get(id=booking_id)
                 booking.status = 'confirmed'
                 booking.payment_status = 'paid'
-                booking.payment_id = session.get('payment_intent', session.get('id', ''))
+                booking.payment_id = payment_intent_id
                 booking.save()
+                
+                # Update existing pending transaction or create new one
+                session_id = session.get('id', '')
+                txn = PaymentTransaction.objects.filter(
+                    payment_system_id=session_id
+                ).first()
+                
+                if txn:
+                    txn.status = 'completed'
+                    txn.amount = amount_total / 100
+                    txn.payment_metadata['payment_intent'] = payment_intent_id
+                    txn.save()
+                else:
+                    PaymentTransaction.objects.create(
+                        client=booking.client,
+                        transaction_type='single',
+                        status='completed',
+                        payment_system_id=payment_intent_id,
+                        amount=amount_total / 100,
+                        currency=session.get('currency', 'gbp').upper(),
+                        payment_metadata={
+                            'booking_id': booking.id,
+                            'service': booking.service.name,
+                            'staff': booking.staff.name,
+                            'stripe_session_id': session_id,
+                        },
+                    )
             except Booking.DoesNotExist:
                 pass
     
@@ -200,6 +245,20 @@ def stripe_webhook(request):
                     booking.status = 'cancelled'
                     booking.payment_status = 'failed'
                     booking.save()
+                    
+                    # Log failed payment
+                    PaymentTransaction.objects.create(
+                        client=booking.client,
+                        transaction_type='single',
+                        status='failed',
+                        payment_system_id=session.get('id', f'expired_{booking_id}'),
+                        amount=0,
+                        currency='GBP',
+                        payment_metadata={
+                            'booking_id': booking.id,
+                            'reason': 'checkout_expired',
+                        },
+                    )
             except Booking.DoesNotExist:
                 pass
     
