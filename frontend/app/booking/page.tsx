@@ -100,10 +100,19 @@ export default function PublicHomePage() {
   async function handleDetailsSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    if (!email.trim()) {
+      setError('Please enter your email address.')
+      return
+    }
     // Check disclaimer before proceeding
     const res = await checkDisclaimer(email)
+    if (res.error) {
+      setError(res.error)
+      return
+    }
     if (res.data?.required && !res.data?.valid) {
       setDisclaimerData(res.data.disclaimer)
+      setError('')
       setStep('disclaimer')
       return
     }
@@ -357,3 +366,4 @@ export default function PublicHomePage() {
     </div>
   )
 }
+
