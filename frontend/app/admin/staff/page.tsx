@@ -3,6 +3,12 @@
 import React, { useEffect, useState } from 'react'
 import { getStaffList, getShifts, getLeaveRequests, getTrainingRecords, createStaff, updateStaff, deleteStaff, createShift, updateShift, deleteShift, getWorkingHours, bulkSetWorkingHours, getTimesheets, updateTimesheet, generateTimesheets } from '@/lib/api'
 
+const C = {
+  green: '#22c55e', amber: '#f59e0b', red: '#ef4444', blue: '#3b82f6',
+  bg: '#0f172a', card: '#1e293b', cardAlt: '#334155', text: '#f8fafc', muted: '#94a3b8',
+  border: '#475569', accent: '#6366f1', surface: '#1e293b',
+}
+
 interface StaffForm {
   first_name: string
   last_name: string
@@ -292,42 +298,64 @@ export default function AdminStaffPage() {
     loadTimesheets()
   }
 
-  if (loading) return <div className="empty-state">Loading staff data…</div>
+  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: C.muted }}><div style={{ textAlign: 'center' }}><div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>👥</div><div>Loading staff data…</div></div></div>
 
   const tabLabels: Record<string, string> = { profiles: 'Profiles', hours: 'Working Hours', timesheets: 'Timesheets', shifts: 'Shifts', leave: 'Leave', training: 'Training' }
 
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '0.4rem 0.5rem', borderRadius: 6, border: `1px solid ${C.border}`, background: C.bg, color: C.text, fontSize: '0.85rem' }
+  const labelStyle: React.CSSProperties = { fontSize: '0.8rem', color: C.muted, marginBottom: 2, display: 'block' }
+  const btnStyle: React.CSSProperties = { padding: '0.45rem 1rem', borderRadius: 8, border: 'none', fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem', transition: 'opacity 0.15s' }
+  const btnPrimary: React.CSSProperties = { ...btnStyle, background: C.accent, color: '#fff' }
+  const btnDanger: React.CSSProperties = { ...btnStyle, background: C.red, color: '#fff' }
+  const btnGhost: React.CSSProperties = { ...btnStyle, background: 'transparent', border: `1px solid ${C.border}`, color: C.muted }
+  const btnSm: React.CSSProperties = { padding: '0.3rem 0.7rem', fontSize: '0.75rem' }
+  const thStyle: React.CSSProperties = { padding: '0.5rem 0.75rem', textAlign: 'left', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: C.muted, borderBottom: `1px solid ${C.border}`, fontWeight: 600 }
+  const tdStyle: React.CSSProperties = { padding: '0.5rem 0.75rem', borderBottom: `1px solid ${C.border}30`, fontSize: '0.85rem', color: C.text }
+  const badgeStyle = (color: string): React.CSSProperties => ({ padding: '2px 8px', borderRadius: 6, fontSize: '0.65rem', fontWeight: 700, background: color + '25', color })
+  const emptyStyle: React.CSSProperties = { textAlign: 'center', padding: '2rem', color: C.muted, fontSize: '0.85rem' }
+
   return (
-    <div>
-      <div className="page-header"><h1>Staff Management</h1><span className="badge badge-danger">Tier 3</span></div>
-      <div className="tabs">
+    <div style={{ color: C.text, maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: C.text }}>Staff Management</h1>
+          <div style={{ fontSize: '0.75rem', color: C.muted }}>Profiles, availability, shifts &amp; timesheets</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1.25rem', overflowX: 'auto', borderBottom: `2px solid ${C.border}30`, paddingBottom: '0.5rem' }}>
         {(['profiles', 'hours', 'timesheets', 'shifts', 'leave', 'training'] as const).map(t => (
-          <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => { setTab(t); if (t === 'timesheets' && timesheets.length === 0) loadTimesheets() }}>{tabLabels[t]}</button>
+          <button key={t} onClick={() => { setTab(t); if (t === 'timesheets' && timesheets.length === 0) loadTimesheets() }} style={{
+            padding: '0.5rem 1rem', borderRadius: '8px 8px 0 0', border: 'none', cursor: 'pointer',
+            background: tab === t ? C.accent : 'transparent', color: tab === t ? '#fff' : C.muted,
+            fontWeight: tab === t ? 700 : 500, fontSize: '0.85rem', transition: 'all 0.15s', whiteSpace: 'nowrap',
+          }}>{tabLabels[t]}</button>
         ))}
       </div>
 
       {tab === 'profiles' && (
         <>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-            <button className="btn btn-primary" onClick={openAdd}>+ Add Staff Member</button>
+            <button style={btnPrimary} onClick={openAdd}>+ Add Staff Member</button>
           </div>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Phone</th><th>Status</th><th>Actions</th></tr></thead>
+          <div style={{ background: C.card, borderRadius: 12, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead><tr><th style={thStyle}>Name</th><th style={thStyle}>Role</th><th style={thStyle}>Email</th><th style={thStyle}>Phone</th><th style={thStyle}>Status</th><th style={thStyle}>Actions</th></tr></thead>
               <tbody>
                 {staff.map((s: any) => (
-                  <tr key={s.id}>
-                    <td style={{ fontWeight: 600 }}>{s.display_name || s.name}</td>
-                    <td>{s.role || '—'}</td>
-                    <td>{s.email}</td>
-                    <td>{s.phone || '—'}</td>
-                    <td><span className={`badge ${(s.is_active ?? s.active) ? 'badge-success' : 'badge-neutral'}`}>{(s.is_active ?? s.active) ? 'Active' : 'Inactive'}</span></td>
-                    <td>
-                      <button className="btn btn-sm" onClick={() => openEdit(s)} style={{ marginRight: 8 }}>Edit</button>
-                      {(s.is_active ?? s.active) && <button className="btn btn-sm btn-danger" onClick={() => handleDelete(s)}>Deactivate</button>}
+                  <tr key={s.id} onMouseEnter={e => (e.currentTarget.style.background = C.cardAlt)} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                    <td style={{ ...tdStyle, fontWeight: 600 }}>{s.display_name || s.name}</td>
+                    <td style={tdStyle}>{s.role || '—'}</td>
+                    <td style={tdStyle}>{s.email}</td>
+                    <td style={tdStyle}>{s.phone || '—'}</td>
+                    <td style={tdStyle}><span style={badgeStyle((s.is_active ?? s.active) ? C.green : C.muted)}>{(s.is_active ?? s.active) ? 'Active' : 'Inactive'}</span></td>
+                    <td style={tdStyle}>
+                      <button style={{ ...btnGhost, ...btnSm, marginRight: 8 }} onClick={() => openEdit(s)}>Edit</button>
+                      {(s.is_active ?? s.active) && <button style={{ ...btnDanger, ...btnSm }} onClick={() => handleDelete(s)}>Deactivate</button>}
                     </td>
                   </tr>
                 ))}
-                {staff.length === 0 && <tr><td colSpan={6} className="empty-state">No staff profiles</td></tr>}
+                {staff.length === 0 && <tr><td colSpan={6} style={emptyStyle}>No staff profiles</td></tr>}
               </tbody>
             </table>
           </div>
@@ -337,17 +365,17 @@ export default function AdminStaffPage() {
       {tab === 'hours' && (
         <div style={{ maxWidth: 780 }}>
           <div style={{ marginBottom: 16 }}>
-            <label className="form-label">Select Staff Member</label>
-            <select className="form-input" value={whStaffId || ''} onChange={e => { const id = Number(e.target.value); if (id) loadWorkingHours(id) }} style={{ maxWidth: 300 }}>
+            <label style={labelStyle}>Select Staff Member</label>
+            <select style={{ ...inputStyle, maxWidth: 300 }} value={whStaffId || ''} onChange={e => { const id = Number(e.target.value); if (id) loadWorkingHours(id) }}>
               <option value="">Choose staff…</option>
               {staff.map((s: any) => <option key={s.id} value={s.id}>{s.display_name}</option>)}
             </select>
           </div>
           {whStaffId && (
             <>
-              <div className="table-wrap">
-                <table>
-                  <thead><tr><th>Day</th><th>Start</th><th>End</th><th>Break (min)</th><th>Hours</th><th></th></tr></thead>
+              <div style={{ background: C.card, borderRadius: 12, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead><tr><th style={thStyle}>Day</th><th style={thStyle}>Start</th><th style={thStyle}>End</th><th style={thStyle}>Break (min)</th><th style={thStyle}>Hours</th><th style={thStyle}></th></tr></thead>
                   <tbody>
                     {DAYS.map((dayName, d) => {
                       const segs = whGrid[d] || []
@@ -356,22 +384,22 @@ export default function AdminStaffPage() {
                         <React.Fragment key={d}>
                           {segs.length === 0 ? (
                             <tr style={{ opacity: 0.45 }}>
-                              <td style={{ fontWeight: 600 }}>{dayName}</td>
-                              <td colSpan={3} style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>Day off</td>
-                              <td>—</td>
-                              <td><button className="btn btn-sm" onClick={() => addWhSegment(d)}>+ Add</button></td>
+                              <td style={{ ...tdStyle, fontWeight: 600 }}>{dayName}</td>
+                              <td colSpan={3} style={{ ...tdStyle, color: C.muted, fontSize: '0.85rem' }}>Day off</td>
+                              <td style={tdStyle}>—</td>
+                              <td style={tdStyle}><button style={{ ...btnGhost, ...btnSm }} onClick={() => addWhSegment(d)}>+ Add</button></td>
                             </tr>
                           ) : (
                             segs.map((seg, i) => (
                               <tr key={`${d}-${i}`}>
-                                <td style={{ fontWeight: 600 }}>{i === 0 ? dayName : ''}{segs.length > 1 && <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginLeft: 4 }}>{i === 0 ? '' : `#${i + 1}`}</span>}</td>
-                                <td><input className="form-input" type="time" value={seg.start_time} onChange={e => updateWhSegment(d, i, 'start_time', e.target.value)} style={{ width: 120 }} /></td>
-                                <td><input className="form-input" type="time" value={seg.end_time} onChange={e => updateWhSegment(d, i, 'end_time', e.target.value)} style={{ width: 120 }} /></td>
-                                <td><input className="form-input" type="number" value={seg.break_minutes} onChange={e => updateWhSegment(d, i, 'break_minutes', Number(e.target.value))} style={{ width: 80 }} min={0} /></td>
-                                <td>{i === 0 ? `${dayHrs.toFixed(1)}h` : ''}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>
-                                  {i === 0 && <button className="btn btn-sm" onClick={() => addWhSegment(d)} title="Add split shift" style={{ marginRight: 4 }}>+ Split</button>}
-                                  <button className="btn btn-sm btn-danger" onClick={() => removeWhSegment(d, i)} title="Remove this segment">×</button>
+                                <td style={{ ...tdStyle, fontWeight: 600 }}>{i === 0 ? dayName : ''}{segs.length > 1 && <span style={{ fontSize: '0.7rem', color: C.muted, marginLeft: 4 }}>{i === 0 ? '' : `#${i + 1}`}</span>}</td>
+                                <td style={tdStyle}><input type="time" value={seg.start_time} onChange={e => updateWhSegment(d, i, 'start_time', e.target.value)} style={{ ...inputStyle, width: 120 }} /></td>
+                                <td style={tdStyle}><input type="time" value={seg.end_time} onChange={e => updateWhSegment(d, i, 'end_time', e.target.value)} style={{ ...inputStyle, width: 120 }} /></td>
+                                <td style={tdStyle}><input type="number" value={seg.break_minutes} onChange={e => updateWhSegment(d, i, 'break_minutes', Number(e.target.value))} style={{ ...inputStyle, width: 80 }} min={0} /></td>
+                                <td style={tdStyle}>{i === 0 ? `${dayHrs.toFixed(1)}h` : ''}</td>
+                                <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+                                  {i === 0 && <button style={{ ...btnGhost, ...btnSm, marginRight: 4 }} onClick={() => addWhSegment(d)} title="Add split shift">+ Split</button>}
+                                  <button style={{ ...btnDanger, ...btnSm }} onClick={() => removeWhSegment(d, i)} title="Remove this segment">×</button>
                                 </td>
                               </tr>
                             ))
@@ -383,14 +411,14 @@ export default function AdminStaffPage() {
                 </table>
               </div>
               <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
+                <span style={{ fontSize: '0.85rem', color: C.muted }}>
                   Weekly total: {calcWeeklyHours().toFixed(1)}h
                 </span>
-                <button className="btn btn-primary" onClick={saveWorkingHours} disabled={whSaving}>{whSaving ? 'Saving…' : 'Save Working Hours'}</button>
+                <button style={btnPrimary} onClick={saveWorkingHours} disabled={whSaving}>{whSaving ? 'Saving…' : 'Save Working Hours'}</button>
               </div>
             </>
           )}
-          {!whStaffId && <div className="empty-state">Select a staff member to set their working hours</div>}
+          {!whStaffId && <div style={emptyStyle}>Select a staff member to set their working hours</div>}
         </div>
       )}
 
@@ -398,43 +426,43 @@ export default function AdminStaffPage() {
         <>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 16 }}>
             <div>
-              <label className="form-label">From</label>
-              <input className="form-input" type="date" value={tsDateFrom} onChange={e => setTsDateFrom(e.target.value)} />
+              <label style={labelStyle}>From</label>
+              <input type="date" value={tsDateFrom} onChange={e => setTsDateFrom(e.target.value)} style={inputStyle} />
             </div>
             <div>
-              <label className="form-label">To</label>
-              <input className="form-input" type="date" value={tsDateTo} onChange={e => setTsDateTo(e.target.value)} />
+              <label style={labelStyle}>To</label>
+              <input type="date" value={tsDateTo} onChange={e => setTsDateTo(e.target.value)} style={inputStyle} />
             </div>
             <div>
-              <label className="form-label">Staff</label>
-              <select className="form-input" value={tsStaffFilter} onChange={e => setTsStaffFilter(e.target.value)}>
+              <label style={labelStyle}>Staff</label>
+              <select style={inputStyle} value={tsStaffFilter} onChange={e => setTsStaffFilter(e.target.value)}>
                 <option value="">All Staff</option>
                 {staff.map((s: any) => <option key={s.id} value={s.id}>{s.display_name}</option>)}
               </select>
             </div>
-            <button className="btn btn-primary btn-sm" onClick={() => loadTimesheets()}>Load</button>
-            <button className="btn btn-sm" onClick={handleGenerateTimesheets} disabled={tsGenerating} title="Auto-populate from working hours">{tsGenerating ? 'Generating…' : 'Generate from Hours'}</button>
+            <button style={{ ...btnPrimary, ...btnSm }} onClick={() => loadTimesheets()}>Load</button>
+            <button style={{ ...btnGhost, ...btnSm }} onClick={handleGenerateTimesheets} disabled={tsGenerating} title="Auto-populate from working hours">{tsGenerating ? 'Generating…' : 'Generate from Hours'}</button>
           </div>
 
           {editingTs && (
-            <div style={{ background: 'var(--color-primary-light)', borderRadius: 'var(--radius)', padding: '1rem', marginBottom: 16 }}>
-              <h3 style={{ marginBottom: 8 }}>Edit: {editingTs.staff_name} — {editingTs.date}</h3>
+            <div style={{ background: C.cardAlt, borderRadius: 12, padding: '1rem', marginBottom: 16 }}>
+              <h3 style={{ marginBottom: 8, color: C.text, fontSize: '0.95rem' }}>Edit: {editingTs.staff_name} — {editingTs.date}</h3>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
                 <div>
-                  <label className="form-label">Actual Start</label>
-                  <input className="form-input" type="time" value={tsForm.actual_start} onChange={e => setTsForm({ ...tsForm, actual_start: e.target.value })} />
+                  <label style={labelStyle}>Actual Start</label>
+                  <input type="time" value={tsForm.actual_start} onChange={e => setTsForm({ ...tsForm, actual_start: e.target.value })} style={inputStyle} />
                 </div>
                 <div>
-                  <label className="form-label">Actual End</label>
-                  <input className="form-input" type="time" value={tsForm.actual_end} onChange={e => setTsForm({ ...tsForm, actual_end: e.target.value })} />
+                  <label style={labelStyle}>Actual End</label>
+                  <input type="time" value={tsForm.actual_end} onChange={e => setTsForm({ ...tsForm, actual_end: e.target.value })} style={inputStyle} />
                 </div>
                 <div>
-                  <label className="form-label">Break (min)</label>
-                  <input className="form-input" type="number" value={tsForm.actual_break_minutes} onChange={e => setTsForm({ ...tsForm, actual_break_minutes: Number(e.target.value) })} min={0} style={{ width: 80 }} />
+                  <label style={labelStyle}>Break (min)</label>
+                  <input type="number" value={tsForm.actual_break_minutes} onChange={e => setTsForm({ ...tsForm, actual_break_minutes: Number(e.target.value) })} min={0} style={{ ...inputStyle, width: 80 }} />
                 </div>
                 <div>
-                  <label className="form-label">Status</label>
-                  <select className="form-input" value={tsForm.status} onChange={e => setTsForm({ ...tsForm, status: e.target.value })}>
+                  <label style={labelStyle}>Status</label>
+                  <select style={inputStyle} value={tsForm.status} onChange={e => setTsForm({ ...tsForm, status: e.target.value })}>
                     <option value="SCHEDULED">Scheduled</option>
                     <option value="WORKED">Worked</option>
                     <option value="LATE">Late Arrival</option>
@@ -446,39 +474,39 @@ export default function AdminStaffPage() {
                   </select>
                 </div>
                 <div style={{ flex: 1, minWidth: 150 }}>
-                  <label className="form-label">Notes</label>
-                  <input className="form-input" value={tsForm.notes} onChange={e => setTsForm({ ...tsForm, notes: e.target.value })} placeholder="e.g. Left 30min early" />
+                  <label style={labelStyle}>Notes</label>
+                  <input value={tsForm.notes} onChange={e => setTsForm({ ...tsForm, notes: e.target.value })} placeholder="e.g. Left 30min early" style={inputStyle} />
                 </div>
-                <button className="btn btn-primary btn-sm" onClick={saveTs} disabled={tsSaving}>{tsSaving ? '…' : 'Save'}</button>
-                <button className="btn btn-sm" onClick={() => setEditingTs(null)}>Cancel</button>
+                <button style={{ ...btnPrimary, ...btnSm }} onClick={saveTs} disabled={tsSaving}>{tsSaving ? '…' : 'Save'}</button>
+                <button style={{ ...btnGhost, ...btnSm }} onClick={() => setEditingTs(null)}>Cancel</button>
               </div>
             </div>
           )}
 
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Date</th><th>Staff</th><th>Sched. Start</th><th>Sched. End</th><th>Sched. Hrs</th><th>Actual Start</th><th>Actual End</th><th>Actual Hrs</th><th>Variance</th><th>Status</th><th>Actions</th></tr></thead>
+          <div style={{ background: C.card, borderRadius: 12, overflow: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
+              <thead><tr><th style={thStyle}>Date</th><th style={thStyle}>Staff</th><th style={thStyle}>Sched. Start</th><th style={thStyle}>Sched. End</th><th style={thStyle}>Sched. Hrs</th><th style={thStyle}>Actual Start</th><th style={thStyle}>Actual End</th><th style={thStyle}>Actual Hrs</th><th style={thStyle}>Variance</th><th style={thStyle}>Status</th><th style={thStyle}>Actions</th></tr></thead>
               <tbody>
                 {timesheets.map((ts: any) => {
                   const variance = ts.variance_hours || 0
-                  const statusColors: Record<string, string> = { WORKED: 'badge-success', SCHEDULED: 'badge-neutral', LATE: 'badge-warning', LEFT_EARLY: 'badge-warning', ABSENT: 'badge-danger', SICK: 'badge-danger', HOLIDAY: 'badge-info', AMENDED: 'badge-info' }
+                  const statusColor: Record<string, string> = { WORKED: C.green, SCHEDULED: C.muted, LATE: C.amber, LEFT_EARLY: C.amber, ABSENT: C.red, SICK: C.red, HOLIDAY: C.blue, AMENDED: C.blue }
                   return (
                     <tr key={ts.id}>
-                      <td style={{ fontWeight: 600 }}>{ts.date}</td>
-                      <td>{ts.staff_name}</td>
-                      <td>{ts.scheduled_start?.slice(0, 5) || '—'}</td>
-                      <td>{ts.scheduled_end?.slice(0, 5) || '—'}</td>
-                      <td>{ts.scheduled_hours ? `${Number(ts.scheduled_hours).toFixed(1)}h` : '—'}</td>
-                      <td>{ts.actual_start?.slice(0, 5) || '—'}</td>
-                      <td>{ts.actual_end?.slice(0, 5) || '—'}</td>
-                      <td>{ts.actual_hours ? `${Number(ts.actual_hours).toFixed(1)}h` : '—'}</td>
-                      <td style={{ color: variance < 0 ? 'var(--color-danger)' : variance > 0 ? 'var(--color-success)' : 'inherit', fontWeight: variance !== 0 ? 600 : 400 }}>{variance !== 0 ? `${variance > 0 ? '+' : ''}${variance.toFixed(1)}h` : '—'}</td>
-                      <td><span className={`badge ${statusColors[ts.status] || 'badge-neutral'}`}>{ts.status_display || ts.status}</span></td>
-                      <td><button className="btn btn-sm" onClick={() => openEditTs(ts)}>Edit</button></td>
+                      <td style={{ ...tdStyle, fontWeight: 600 }}>{ts.date}</td>
+                      <td style={tdStyle}>{ts.staff_name}</td>
+                      <td style={tdStyle}>{ts.scheduled_start?.slice(0, 5) || '—'}</td>
+                      <td style={tdStyle}>{ts.scheduled_end?.slice(0, 5) || '—'}</td>
+                      <td style={tdStyle}>{ts.scheduled_hours ? `${Number(ts.scheduled_hours).toFixed(1)}h` : '—'}</td>
+                      <td style={tdStyle}>{ts.actual_start?.slice(0, 5) || '—'}</td>
+                      <td style={tdStyle}>{ts.actual_end?.slice(0, 5) || '—'}</td>
+                      <td style={tdStyle}>{ts.actual_hours ? `${Number(ts.actual_hours).toFixed(1)}h` : '—'}</td>
+                      <td style={{ ...tdStyle, color: variance < 0 ? C.red : variance > 0 ? C.green : C.muted, fontWeight: variance !== 0 ? 600 : 400 }}>{variance !== 0 ? `${variance > 0 ? '+' : ''}${variance.toFixed(1)}h` : '—'}</td>
+                      <td style={tdStyle}><span style={badgeStyle(statusColor[ts.status] || C.muted)}>{ts.status_display || ts.status}</span></td>
+                      <td style={tdStyle}><button style={{ ...btnGhost, ...btnSm }} onClick={() => openEditTs(ts)}>Edit</button></td>
                     </tr>
                   )
                 })}
-                {timesheets.length === 0 && <tr><td colSpan={11} className="empty-state">No timesheet entries. Set working hours first, then click "Generate from Hours".</td></tr>}
+                {timesheets.length === 0 && <tr><td colSpan={11} style={emptyStyle}>No timesheet entries. Set working hours first, then click &quot;Generate from Hours&quot;.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -488,28 +516,28 @@ export default function AdminStaffPage() {
       {tab === 'shifts' && (
         <>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-            <button className="btn btn-primary" onClick={openAddShift}>+ Add Shift</button>
+            <button style={btnPrimary} onClick={openAddShift}>+ Add Shift</button>
           </div>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Date</th><th>Staff</th><th>Start</th><th>End</th><th>Hours</th><th>Location</th><th>Published</th><th>Actions</th></tr></thead>
+          <div style={{ background: C.card, borderRadius: 12, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead><tr><th style={thStyle}>Date</th><th style={thStyle}>Staff</th><th style={thStyle}>Start</th><th style={thStyle}>End</th><th style={thStyle}>Hours</th><th style={thStyle}>Location</th><th style={thStyle}>Published</th><th style={thStyle}>Actions</th></tr></thead>
               <tbody>
                 {shifts.map((s: any) => (
-                  <tr key={s.id}>
-                    <td style={{ fontWeight: 600 }}>{s.date}</td>
-                    <td>{s.staff_name}</td>
-                    <td>{s.start_time?.slice(0, 5)}</td>
-                    <td>{s.end_time?.slice(0, 5)}</td>
-                    <td>{s.duration_hours ? `${Number(s.duration_hours).toFixed(1)}h` : '—'}</td>
-                    <td>{s.location || '—'}</td>
-                    <td><span className={`badge ${s.is_published ? 'badge-success' : 'badge-neutral'}`}>{s.is_published ? 'Yes' : 'Draft'}</span></td>
-                    <td>
-                      <button className="btn btn-sm" onClick={() => openEditShift(s)} style={{ marginRight: 8 }}>Edit</button>
-                      <button className="btn btn-sm btn-danger" onClick={() => handleDeleteShift(s)}>Delete</button>
+                  <tr key={s.id} onMouseEnter={e => (e.currentTarget.style.background = C.cardAlt)} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                    <td style={{ ...tdStyle, fontWeight: 600 }}>{s.date}</td>
+                    <td style={tdStyle}>{s.staff_name}</td>
+                    <td style={tdStyle}>{s.start_time?.slice(0, 5)}</td>
+                    <td style={tdStyle}>{s.end_time?.slice(0, 5)}</td>
+                    <td style={tdStyle}>{s.duration_hours ? `${Number(s.duration_hours).toFixed(1)}h` : '—'}</td>
+                    <td style={tdStyle}>{s.location || '—'}</td>
+                    <td style={tdStyle}><span style={badgeStyle(s.is_published ? C.green : C.muted)}>{s.is_published ? 'Yes' : 'Draft'}</span></td>
+                    <td style={tdStyle}>
+                      <button style={{ ...btnGhost, ...btnSm, marginRight: 8 }} onClick={() => openEditShift(s)}>Edit</button>
+                      <button style={{ ...btnDanger, ...btnSm }} onClick={() => handleDeleteShift(s)}>Delete</button>
                     </td>
                   </tr>
                 ))}
-                {shifts.length === 0 && <tr><td colSpan={8} className="empty-state">No shifts assigned yet</td></tr>}
+                {shifts.length === 0 && <tr><td colSpan={8} style={emptyStyle}>No shifts assigned yet</td></tr>}
               </tbody>
             </table>
           </div>
@@ -517,28 +545,28 @@ export default function AdminStaffPage() {
       )}
 
       {tab === 'leave' && (
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>Staff</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th></tr></thead>
+        <div style={{ background: C.card, borderRadius: 12, overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead><tr><th style={thStyle}>Staff</th><th style={thStyle}>Type</th><th style={thStyle}>From</th><th style={thStyle}>To</th><th style={thStyle}>Days</th><th style={thStyle}>Reason</th><th style={thStyle}>Status</th></tr></thead>
             <tbody>
               {leave.map((l: any) => (
-                <tr key={l.id}><td style={{ fontWeight: 600 }}>{l.staff_name}</td><td>{l.leave_type}</td><td>{l.start_date}</td><td>{l.end_date}</td><td>{l.duration_days}</td><td style={{ maxWidth: 200 }}>{l.reason}</td><td><span className={`badge ${l.status === 'APPROVED' ? 'badge-success' : l.status === 'PENDING' ? 'badge-warning' : 'badge-danger'}`}>{l.status}</span></td></tr>
+                <tr key={l.id} onMouseEnter={e => (e.currentTarget.style.background = C.cardAlt)} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}><td style={{ ...tdStyle, fontWeight: 600 }}>{l.staff_name}</td><td style={tdStyle}>{l.leave_type}</td><td style={tdStyle}>{l.start_date}</td><td style={tdStyle}>{l.end_date}</td><td style={tdStyle}>{l.duration_days}</td><td style={{ ...tdStyle, maxWidth: 200 }}>{l.reason}</td><td style={tdStyle}><span style={badgeStyle(l.status === 'APPROVED' ? C.green : l.status === 'PENDING' ? C.amber : C.red)}>{l.status}</span></td></tr>
               ))}
-              {leave.length === 0 && <tr><td colSpan={7} className="empty-state">No leave requests</td></tr>}
+              {leave.length === 0 && <tr><td colSpan={7} style={emptyStyle}>No leave requests</td></tr>}
             </tbody>
           </table>
         </div>
       )}
 
       {tab === 'training' && (
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>Staff</th><th>Course</th><th>Provider</th><th>Completed</th><th>Expiry</th><th>Status</th></tr></thead>
+        <div style={{ background: C.card, borderRadius: 12, overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead><tr><th style={thStyle}>Staff</th><th style={thStyle}>Course</th><th style={thStyle}>Provider</th><th style={thStyle}>Completed</th><th style={thStyle}>Expiry</th><th style={thStyle}>Status</th></tr></thead>
             <tbody>
               {training.map((t: any) => (
-                <tr key={t.id}><td style={{ fontWeight: 600 }}>{t.staff_name}</td><td>{t.title}</td><td>{t.provider}</td><td>{t.completed_date}</td><td>{t.expiry_date || 'N/A'}</td><td><span className={`badge ${t.is_expired ? 'badge-danger' : 'badge-success'}`}>{t.is_expired ? 'EXPIRED' : 'VALID'}</span></td></tr>
+                <tr key={t.id} onMouseEnter={e => (e.currentTarget.style.background = C.cardAlt)} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}><td style={{ ...tdStyle, fontWeight: 600 }}>{t.staff_name}</td><td style={tdStyle}>{t.title}</td><td style={tdStyle}>{t.provider}</td><td style={tdStyle}>{t.completed_date}</td><td style={tdStyle}>{t.expiry_date || 'N/A'}</td><td style={tdStyle}><span style={badgeStyle(t.is_expired ? C.red : C.green)}>{t.is_expired ? 'EXPIRED' : 'VALID'}</span></td></tr>
               ))}
-              {training.length === 0 && <tr><td colSpan={6} className="empty-state">No training records</td></tr>}
+              {training.length === 0 && <tr><td colSpan={6} style={emptyStyle}>No training records</td></tr>}
             </tbody>
           </table>
         </div>
@@ -546,40 +574,40 @@ export default function AdminStaffPage() {
 
       {/* Add / Edit Staff Modal */}
       {showAddModal && (
-        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
-            <h2 style={{ marginBottom: 16 }}>{editingStaff ? 'Edit Staff Member' : 'Add Staff Member'}</h2>
-            {error && <div className="alert alert-danger" style={{ marginBottom: 12 }}>{error}</div>}
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} onClick={() => setShowAddModal(false)}>
+          <div onClick={e => e.stopPropagation()} style={{ maxWidth: 480, width: '100%', padding: '2rem', background: C.cardAlt, borderRadius: 16, color: C.text, position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h2 style={{ marginBottom: 16, color: C.text }}>{editingStaff ? 'Edit Staff Member' : 'Add Staff Member'}</h2>
+            {error && <div style={{ background: '#7f1d1d', color: '#fca5a5', padding: '0.6rem 1rem', borderRadius: 10, marginBottom: 12, fontSize: '0.85rem' }}>{error}</div>}
             <div style={{ display: 'grid', gap: 12 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
-                  <label className="form-label">First Name *</label>
-                  <input className="form-input" value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} placeholder="e.g. Sam" />
+                  <label style={labelStyle}>First Name *</label>
+                  <input value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} placeholder="e.g. Sam" style={inputStyle} />
                 </div>
                 <div>
-                  <label className="form-label">Last Name *</label>
-                  <input className="form-input" value={form.last_name} onChange={e => setForm({ ...form, last_name: e.target.value })} placeholder="e.g. Kim" />
+                  <label style={labelStyle}>Last Name *</label>
+                  <input value={form.last_name} onChange={e => setForm({ ...form, last_name: e.target.value })} placeholder="e.g. Kim" style={inputStyle} />
                 </div>
               </div>
               <div>
-                <label className="form-label">Email *</label>
-                <input className="form-input" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="e.g. sam.kim@company.com" />
+                <label style={labelStyle}>Email *</label>
+                <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="e.g. sam.kim@company.com" style={inputStyle} />
               </div>
               <div>
-                <label className="form-label">Phone</label>
-                <input className="form-input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="e.g. 07700 900000" />
+                <label style={labelStyle}>Phone</label>
+                <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="e.g. 07700 900000" style={inputStyle} />
               </div>
               <div>
-                <label className="form-label">Role</label>
-                <select className="form-input" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
+                <label style={labelStyle}>Role</label>
+                <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} style={inputStyle}>
                   <option value="staff">Staff</option>
                   <option value="manager">Manager</option>
                 </select>
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
-              <button className="btn" onClick={() => setShowAddModal(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : editingStaff ? 'Save Changes' : 'Add Staff'}</button>
+              <button style={btnGhost} onClick={() => setShowAddModal(false)}>Cancel</button>
+              <button style={btnPrimary} onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : editingStaff ? 'Save Changes' : 'Add Staff'}</button>
             </div>
           </div>
         </div>
@@ -587,18 +615,18 @@ export default function AdminStaffPage() {
 
       {/* Credentials Modal — shown after successful staff creation */}
       {createdCreds && (
-        <div className="modal-overlay" onClick={() => setCreatedCreds(null)}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
-            <h2 style={{ marginBottom: 4 }}>Staff Member Created</h2>
-            <p style={{ color: 'var(--color-text-muted)', marginBottom: 16, fontSize: '0.9rem' }}>Share these login details with <strong>{createdCreds.name}</strong>. They will be asked to set their own password on first login.</p>
-            <div style={{ background: 'var(--color-primary-light)', borderRadius: 'var(--radius-md)', padding: '1rem', display: 'grid', gap: 8, fontSize: '0.9rem' }}>
-              <div><strong>Login URL:</strong> <code>{window.location.origin}/login</code></div>
-              <div><strong>Email:</strong> <code>{createdCreds.email}</code></div>
-              <div><strong>Temporary Password:</strong> <code style={{ fontSize: '1.1rem', fontWeight: 700 }}>{createdCreds.temp_password}</code></div>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} onClick={() => setCreatedCreds(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ maxWidth: 480, width: '100%', padding: '2rem', background: C.cardAlt, borderRadius: 16, color: C.text, position: 'relative' }}>
+            <h2 style={{ marginBottom: 4, color: C.text }}>Staff Member Created</h2>
+            <p style={{ color: C.muted, marginBottom: 16, fontSize: '0.9rem' }}>Share these login details with <strong>{createdCreds.name}</strong>. They will be asked to set their own password on first login.</p>
+            <div style={{ background: C.bg, borderRadius: 10, padding: '1rem', display: 'grid', gap: 8, fontSize: '0.9rem' }}>
+              <div><strong>Login URL:</strong> <code style={{ color: C.accent }}>{window.location.origin}/login</code></div>
+              <div><strong>Email:</strong> <code style={{ color: C.accent }}>{createdCreds.email}</code></div>
+              <div><strong>Temporary Password:</strong> <code style={{ fontSize: '1.1rem', fontWeight: 700, color: C.green }}>{createdCreds.temp_password}</code></div>
             </div>
-            <p style={{ marginTop: 12, fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>This password is shown once. The staff member must change it on their first login.</p>
+            <p style={{ marginTop: 12, fontSize: '0.8rem', color: C.muted }}>This password is shown once. The staff member must change it on their first login.</p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
-              <button className="btn btn-primary" onClick={() => setCreatedCreds(null)}>Done</button>
+              <button style={btnPrimary} onClick={() => setCreatedCreds(null)}>Done</button>
             </div>
           </div>
         </div>
@@ -606,66 +634,66 @@ export default function AdminStaffPage() {
 
       {/* Shift Modal */}
       {showShiftModal && (
-        <div className="modal-overlay" onClick={() => setShowShiftModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
-            <h2>{editingShift ? 'Edit Shift' : 'Add Shift'}</h2>
-            {shiftError && <div className="alert alert-danger">{shiftError}</div>}
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} onClick={() => setShowShiftModal(false)}>
+          <div onClick={e => e.stopPropagation()} style={{ maxWidth: 520, width: '100%', padding: '2rem', background: C.cardAlt, borderRadius: 16, color: C.text, position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h2 style={{ color: C.text }}>{editingShift ? 'Edit Shift' : 'Add Shift'}</h2>
+            {shiftError && <div style={{ background: '#7f1d1d', color: '#fca5a5', padding: '0.6rem 1rem', borderRadius: 10, marginBottom: 12, fontSize: '0.85rem' }}>{shiftError}</div>}
             <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
               <div>
-                <label className="form-label">Staff Member *</label>
-                <select className="form-input" value={shiftForm.staff} onChange={e => setShiftForm({ ...shiftForm, staff: e.target.value })}>
+                <label style={labelStyle}>Staff Member *</label>
+                <select value={shiftForm.staff} onChange={e => setShiftForm({ ...shiftForm, staff: e.target.value })} style={inputStyle}>
                   <option value="">Select staff…</option>
                   {staff.map((s: any) => <option key={s.id} value={s.id}>{s.display_name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="form-label">Date *</label>
-                <input className="form-input" type="date" value={shiftForm.date} onChange={e => setShiftForm({ ...shiftForm, date: e.target.value })} />
+                <label style={labelStyle}>Date *</label>
+                <input type="date" value={shiftForm.date} onChange={e => setShiftForm({ ...shiftForm, date: e.target.value })} style={inputStyle} />
               </div>
 
               {/* Time segments — split shift support */}
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <label className="form-label" style={{ margin: 0 }}>Working Hours *</label>
-                  {!editingShift && <button type="button" className="btn btn-sm" onClick={addSegment}>+ Split Shift</button>}
+                  <label style={{ ...labelStyle, margin: 0 }}>Working Hours *</label>
+                  {!editingShift && <button type="button" style={{ ...btnGhost, ...btnSm }} onClick={addSegment}>+ Split Shift</button>}
                 </div>
                 {shiftSegments.map((seg, i) => (
                   <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
                     <div style={{ flex: 1 }}>
-                      {i === 0 && <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Start</span>}
-                      <input className="form-input" type="time" value={seg.start_time} onChange={e => updateSegment(i, 'start_time', e.target.value)} />
+                      {i === 0 && <span style={{ fontSize: '0.75rem', color: C.muted }}>Start</span>}
+                      <input type="time" value={seg.start_time} onChange={e => updateSegment(i, 'start_time', e.target.value)} style={inputStyle} />
                     </div>
-                    <span style={{ paddingTop: i === 0 ? 16 : 0 }}>→</span>
+                    <span style={{ paddingTop: i === 0 ? 16 : 0, color: C.muted }}>→</span>
                     <div style={{ flex: 1 }}>
-                      {i === 0 && <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>End</span>}
-                      <input className="form-input" type="time" value={seg.end_time} onChange={e => updateSegment(i, 'end_time', e.target.value)} />
+                      {i === 0 && <span style={{ fontSize: '0.75rem', color: C.muted }}>End</span>}
+                      <input type="time" value={seg.end_time} onChange={e => updateSegment(i, 'end_time', e.target.value)} style={inputStyle} />
                     </div>
                     {shiftSegments.length > 1 && (
-                      <button type="button" onClick={() => removeSegment(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-danger)', fontWeight: 700, fontSize: '1.2rem', paddingTop: i === 0 ? 16 : 0 }}>×</button>
+                      <button type="button" onClick={() => removeSegment(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.red, fontWeight: 700, fontSize: '1.2rem', paddingTop: i === 0 ? 16 : 0 }}>×</button>
                     )}
                   </div>
                 ))}
                 {shiftSegments.length > 1 && (
-                  <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 4 }}>Split shift: {shiftSegments.length} segments will be created for this day.</p>
+                  <p style={{ fontSize: '0.8rem', color: C.muted, marginTop: 4 }}>Split shift: {shiftSegments.length} segments will be created for this day.</p>
                 )}
               </div>
 
               <div>
-                <label className="form-label">Location</label>
-                <input className="form-input" value={shiftForm.location} onChange={e => setShiftForm({ ...shiftForm, location: e.target.value })} placeholder="e.g. Main Office" />
+                <label style={labelStyle}>Location</label>
+                <input value={shiftForm.location} onChange={e => setShiftForm({ ...shiftForm, location: e.target.value })} placeholder="e.g. Main Office" style={inputStyle} />
               </div>
               <div>
-                <label className="form-label">Notes</label>
-                <input className="form-input" value={shiftForm.notes} onChange={e => setShiftForm({ ...shiftForm, notes: e.target.value })} placeholder="Optional notes" />
+                <label style={labelStyle}>Notes</label>
+                <input value={shiftForm.notes} onChange={e => setShiftForm({ ...shiftForm, notes: e.target.value })} placeholder="Optional notes" style={inputStyle} />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <input type="checkbox" id="shift-published" checked={shiftForm.is_published} onChange={e => setShiftForm({ ...shiftForm, is_published: e.target.checked })} />
-                <label htmlFor="shift-published" style={{ fontSize: '0.9rem' }}>Published (visible to staff)</label>
+                <label htmlFor="shift-published" style={{ fontSize: '0.9rem', color: C.text }}>Published (visible to staff)</label>
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
-              <button className="btn" onClick={() => setShowShiftModal(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleSaveShift} disabled={shiftSaving}>{shiftSaving ? 'Saving…' : editingShift ? 'Save Changes' : 'Add Shift'}</button>
+              <button style={btnGhost} onClick={() => setShowShiftModal(false)}>Cancel</button>
+              <button style={btnPrimary} onClick={handleSaveShift} disabled={shiftSaving}>{shiftSaving ? 'Saving…' : editingShift ? 'Save Changes' : 'Add Shift'}</button>
             </div>
           </div>
         </div>

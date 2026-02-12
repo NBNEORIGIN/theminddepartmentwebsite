@@ -4,14 +4,15 @@ import { useEffect, useState, useCallback } from 'react'
 import { getReportsOverview, getReportsDaily, getReportsMonthly, getReportsStaff, getReportsInsights, getStaffList, getServices, seedDemoData, deleteDemoData, getDemoStatus } from '@/lib/api'
 
 /* ================================================================
-   REPORTS — Intelligence Dashboard (Light Theme)
-   Consistent with Staff / Services / Bookings admin pages
+   REPORTS — Intelligence Dashboard (Dark Theme)
+   Consistent with HSE / Staff admin pages
    ================================================================ */
 
 const CLR = {
-  green: '#16a34a', amber: '#d97706', red: '#dc2626', blue: '#2563eb',
-  purple: '#7c3aed', primary: '#2563eb', muted: '#64748b', border: '#e2e8f0',
-  surface: '#ffffff', bg: '#f8fafc', text: '#1e293b', barTrack: '#f1f5f9',
+  green: '#22c55e', amber: '#f59e0b', red: '#ef4444', blue: '#3b82f6',
+  purple: '#a78bfa', primary: '#3b82f6', muted: '#94a3b8', border: '#475569',
+  surface: '#1e293b', bg: '#0f172a', text: '#f8fafc', barTrack: '#334155',
+  card: '#1e293b', cardAlt: '#334155', accent: '#6366f1',
 }
 
 function fmtP(v: number) { return '£' + v.toFixed(2) }
@@ -97,66 +98,80 @@ export default function AdminReportsPage() {
 
   const isEmpty = !loading && tab === 'overview' && (!overview || (kpi.total_bookings || 0) === 0)
 
+  const inputStyle: React.CSSProperties = { padding: '0.4rem 0.5rem', borderRadius: 6, border: `1px solid ${CLR.border}`, background: CLR.bg, color: CLR.text, fontSize: '0.85rem' }
+  const btnStyle: React.CSSProperties = { padding: '0.45rem 1rem', borderRadius: 8, border: 'none', fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem', transition: 'opacity 0.15s' }
+  const btnPrimary: React.CSSProperties = { ...btnStyle, background: CLR.accent, color: '#fff' }
+  const btnGhost: React.CSSProperties = { ...btnStyle, background: 'transparent', border: `1px solid ${CLR.border}`, color: CLR.muted }
+  const btnSm: React.CSSProperties = { padding: '0.3rem 0.7rem', fontSize: '0.75rem' }
+  const thStyle: React.CSSProperties = { padding: '0.5rem 0.75rem', textAlign: 'left', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: CLR.muted, borderBottom: `1px solid ${CLR.border}`, fontWeight: 600 }
+  const tdStyle: React.CSSProperties = { padding: '0.5rem 0.75rem', borderBottom: `1px solid ${CLR.border}30`, fontSize: '0.85rem', color: CLR.text }
+
   return (
-    <div>
+    <div style={{ color: CLR.text, maxWidth: 1200, margin: '0 auto' }}>
       {/* Header */}
-      <div className="page-header">
-        <h1>Reports</h1>
-        <span className="badge badge-danger">Tier 3</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: CLR.text }}>Reports</h1>
+          <div style={{ fontSize: '0.75rem', color: CLR.muted }}>Revenue, risk &amp; performance intelligence</div>
+        </div>
       </div>
 
       {/* Demo data banner */}
       {demoStatus.has_demo && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.625rem 1rem', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.85rem' }}>
-          <span style={{ color: '#92400e', fontWeight: 600 }}>Showing demo data ({demoStatus.demo_count} bookings)</span>
-          <button className="btn btn-sm btn-outline" onClick={handleDeleteDemo} disabled={demoLoading} style={{ color: '#dc2626', borderColor: '#fca5a5' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.625rem 1rem', background: CLR.amber + '15', border: `1px solid ${CLR.amber}40`, borderRadius: 10, marginBottom: '1rem', fontSize: '0.85rem' }}>
+          <span style={{ color: CLR.amber, fontWeight: 600 }}>Showing demo data ({demoStatus.demo_count} bookings)</span>
+          <button style={{ ...btnGhost, ...btnSm, color: CLR.red, borderColor: CLR.red + '60' }} onClick={handleDeleteDemo} disabled={demoLoading}>
             {demoLoading ? 'Removing…' : 'Remove demo data'}
           </button>
         </div>
       )}
 
       {/* Filters */}
-      <div className="filter-bar">
+      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1rem' }}>
         {[{ d: 7, l: '7d' }, { d: 30, l: '30d' }, { d: 90, l: '90d' }, { d: 365, l: '1yr' }].map(r => (
-          <button key={r.d} className="btn btn-sm btn-outline" onClick={() => setRange(r.d)}>{r.l}</button>
+          <button key={r.d} style={{ ...btnGhost, ...btnSm }} onClick={() => setRange(r.d)}>{r.l}</button>
         ))}
-        <input type="date" value={filters.date_from} onChange={e => setF('date_from', e.target.value)} style={{ maxWidth: 160 }} />
-        <input type="date" value={filters.date_to} onChange={e => setF('date_to', e.target.value)} style={{ maxWidth: 160 }} />
-        <select value={filters.staff_id || ''} onChange={e => setF('staff_id', e.target.value ? Number(e.target.value) : undefined)} style={{ maxWidth: 180 }}>
+        <input type="date" value={filters.date_from} onChange={e => setF('date_from', e.target.value)} style={{ ...inputStyle, maxWidth: 160 }} />
+        <input type="date" value={filters.date_to} onChange={e => setF('date_to', e.target.value)} style={{ ...inputStyle, maxWidth: 160 }} />
+        <select value={filters.staff_id || ''} onChange={e => setF('staff_id', e.target.value ? Number(e.target.value) : undefined)} style={{ ...inputStyle, maxWidth: 180 }}>
           <option value="">All Staff</option>
           {staffList.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
-        <select value={filters.service_id || ''} onChange={e => setF('service_id', e.target.value ? Number(e.target.value) : undefined)} style={{ maxWidth: 180 }}>
+        <select value={filters.service_id || ''} onChange={e => setF('service_id', e.target.value ? Number(e.target.value) : undefined)} style={{ ...inputStyle, maxWidth: 180 }}>
           <option value="">All Services</option>
           {serviceList.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
-        <select value={filters.risk_level || ''} onChange={e => setF('risk_level', e.target.value)} style={{ maxWidth: 140 }}>
+        <select value={filters.risk_level || ''} onChange={e => setF('risk_level', e.target.value)} style={{ ...inputStyle, maxWidth: 140 }}>
           <option value="">All Risk</option>
           <option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option><option value="CRITICAL">Critical</option>
         </select>
       </div>
 
       {/* Tabs */}
-      <div className="tabs">
+      <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1.25rem', overflowX: 'auto', borderBottom: `2px solid ${CLR.border}30`, paddingBottom: '0.5rem' }}>
         {tabs.map(t => (
-          <button key={t.key} className={`tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>
+          <button key={t.key} onClick={() => setTab(t.key)} style={{
+            padding: '0.5rem 1rem', borderRadius: '8px 8px 0 0', border: 'none', cursor: 'pointer',
+            background: tab === t.key ? CLR.accent : 'transparent', color: tab === t.key ? '#fff' : CLR.muted,
+            fontWeight: tab === t.key ? 700 : 500, fontSize: '0.85rem', transition: 'all 0.15s', whiteSpace: 'nowrap',
+          }}>{t.label}</button>
         ))}
       </div>
 
       {loading ? (
-        <div className="empty-state">Loading analytics…</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40vh', color: CLR.muted }}><div style={{ textAlign: 'center' }}><div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📊</div><div>Loading analytics…</div></div></div>
       ) : isEmpty ? (
-        <div className="empty-state">
+        <div style={{ textAlign: 'center', padding: '3rem 1rem', color: CLR.muted }}>
           <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>📊</div>
-          <h3 style={{ marginBottom: '0.5rem' }}>No report data yet</h3>
-          <p style={{ marginBottom: '1rem', maxWidth: 400, margin: '0 auto 1rem' }}>
+          <h3 style={{ marginBottom: '0.5rem', color: CLR.text }}>No report data yet</h3>
+          <p style={{ marginBottom: '1rem', maxWidth: 400, margin: '0 auto 1rem', color: CLR.muted }}>
             Create your first booking to see revenue, risk, and performance data here. Or load demo data to explore what reports look like.
           </p>
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
-            <button className="btn btn-primary" onClick={handleSeedDemo} disabled={demoLoading}>
+            <button style={btnPrimary} onClick={handleSeedDemo} disabled={demoLoading}>
               {demoLoading ? 'Loading…' : 'Add demo data'}
             </button>
-            <a href="/admin/bookings" className="btn btn-outline">Create a booking</a>
+            <a href="/admin/bookings" style={btnGhost}>Create a booking</a>
           </div>
         </div>
       ) : (
@@ -165,7 +180,7 @@ export default function AdminReportsPage() {
           {tab === 'overview' && overview && (
             <div>
               {/* KPI Row */}
-              <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
                 <KpiCard label="Revenue" value={fmtK(kpi.revenue || 0)} color={CLR.green} />
                 <KpiCard label="At Risk" value={fmtK(kpi.revenue_at_risk || 0)} color={CLR.red} />
                 <KpiCard label="Bookings" value={String(kpi.total_bookings || 0)} color={CLR.blue} />
@@ -175,12 +190,12 @@ export default function AdminReportsPage() {
                 <KpiCard label="Repeat %" value={`${kpi.repeat_client_pct || 0}%`} color={CLR.purple} />
               </div>
 
-              <div className="rpt-grid-2" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                <div className="card">
+              <div data-rpt-grid style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div style={{ background: CLR.card, borderRadius: 16, padding: '1.5rem' }}>
                   <CardTitle>Revenue Over Time</CardTitle>
                   <BarChart data={(overview.revenue_timeline || []).map((d: any) => ({ label: d.date.slice(5), value: d.revenue }))} color={CLR.green} height={140} />
                 </div>
-                <div className="card">
+                <div style={{ background: CLR.card, borderRadius: 16, padding: '1.5rem' }}>
                   <CardTitle>Risk Distribution</CardTitle>
                   <DonutChart data={(overview.risk_distribution || []).map((d: any) => ({
                     label: d.level, value: d.count,
@@ -189,25 +204,25 @@ export default function AdminReportsPage() {
                 </div>
               </div>
 
-              <div className="rpt-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                <div className="card">
+              <div data-rpt-grid style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div style={{ background: CLR.card, borderRadius: 16, padding: '1.5rem' }}>
                   <CardTitle>Demand Heatmap</CardTitle>
                   <HeatmapChart data={overview.demand_heatmap || []} />
                 </div>
-                <div className="card">
+                <div style={{ background: CLR.card, borderRadius: 16, padding: '1.5rem' }}>
                   <CardTitle>Service Revenue</CardTitle>
                   <HBarChart data={(overview.service_breakdown || []).slice(0, 6).map((s: any) => ({ label: s.name, value: s.revenue }))} color={CLR.blue} />
                 </div>
               </div>
 
               {insights && (
-                <div className="rpt-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div className="card">
+                <div data-rpt-grid style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div style={{ background: CLR.card, borderRadius: 16, padding: '1.5rem' }}>
                     <CardTitle>Smart Engine Insights</CardTitle>
                     {(insights.insights || []).length === 0 ? (
                       <p style={{ fontSize: '0.85rem', color: CLR.muted }}>No insights yet — more data needed.</p>
                     ) : (insights.insights || []).map((ins: any, i: number) => (
-                      <div key={i} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', padding: '0.5rem 0', borderBottom: i < insights.insights.length - 1 ? `1px solid ${CLR.border}` : 'none' }}>
+                      <div key={i} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', padding: '0.5rem 0', borderBottom: i < insights.insights.length - 1 ? `1px solid ${CLR.border}30` : 'none' }}>
                         <span style={{ flexShrink: 0 }}>{ins.type === 'danger' ? '🔴' : ins.type === 'warning' ? '🟡' : ins.type === 'success' ? '🟢' : '🔵'}</span>
                         <div>
                           <div style={{ fontSize: '0.85rem', fontWeight: 600, color: CLR.text }}>{ins.message}</div>
@@ -216,12 +231,12 @@ export default function AdminReportsPage() {
                       </div>
                     ))}
                   </div>
-                  <div className="card">
+                  <div style={{ background: CLR.card, borderRadius: 16, padding: '1.5rem' }}>
                     <CardTitle>Recommended Actions</CardTitle>
                     {(insights.actions || []).length === 0 ? (
                       <p style={{ fontSize: '0.85rem', color: CLR.muted }}>No actions needed right now.</p>
                     ) : (insights.actions || []).map((act: any, i: number) => (
-                      <div key={i} style={{ padding: '0.625rem 0.75rem', background: CLR.bg, borderRadius: 'var(--radius)', marginBottom: '0.5rem', borderLeft: `3px solid ${act.severity === 'high' ? CLR.red : CLR.amber}` }}>
+                      <div key={i} style={{ padding: '0.625rem 0.75rem', background: CLR.bg, borderRadius: 8, marginBottom: '0.5rem', borderLeft: `3px solid ${act.severity === 'high' ? CLR.red : CLR.amber}` }}>
                         <div style={{ fontSize: '0.85rem', fontWeight: 600, color: CLR.text }}>{act.action}</div>
                         <div style={{ fontSize: '0.75rem', color: CLR.green, fontWeight: 600 }}>{act.impact}</div>
                       </div>
@@ -242,40 +257,40 @@ export default function AdminReportsPage() {
                 const totalBk = rows.reduce((s: number, r: any) => s + r.bookings, 0)
                 return (
                   <>
-                    <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
                       <KpiCard label="Period Revenue" value={fmtK(totalRev)} color={CLR.green} />
                       <KpiCard label="Bookings" value={String(totalBk)} color={CLR.blue} />
                       <KpiCard label="No Shows" value={String(totalNS)} color={totalNS > 0 ? CLR.red : CLR.green} />
                       <KpiCard label="Active Days" value={String(rows.length)} color={CLR.primary} />
                     </div>
 
-                    <div className="card" style={{ marginBottom: '1rem' }}>
+                    <div style={{ background: CLR.card, borderRadius: 16, padding: '1.5rem', marginBottom: '1rem' }}>
                       <CardTitle>Daily Revenue</CardTitle>
                       <BarChart data={rows.map((r: any) => ({ label: r.date.slice(5), value: r.revenue }))} color={CLR.green} height={160} />
                     </div>
 
-                    <div className="card">
+                    <div style={{ background: CLR.card, borderRadius: 16, padding: '1.5rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                         <CardTitle>Daily Breakdown</CardTitle>
-                        <button className="btn btn-sm btn-outline" onClick={() => exportCSV(rows, 'daily_takings.csv')}>↓ CSV</button>
+                        <button style={{ ...btnGhost, ...btnSm }} onClick={() => exportCSV(rows, 'daily_takings.csv')}>↓ CSV</button>
                       </div>
-                      <div className="table-wrap">
-                        <table>
+                      <div style={{ overflow: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                           <thead><tr>
-                            <th>Date</th><th style={{ textAlign: 'right' }}>Revenue</th><th style={{ textAlign: 'right' }}>At Risk</th>
-                            <th style={{ textAlign: 'right' }}>Deposits</th><th style={{ textAlign: 'right' }}>Bookings</th>
-                            <th style={{ textAlign: 'right' }}>No Shows</th><th style={{ textAlign: 'right' }}>Cancelled</th>
+                            <th style={thStyle}>Date</th><th style={{ ...thStyle, textAlign: 'right' }}>Revenue</th><th style={{ ...thStyle, textAlign: 'right' }}>At Risk</th>
+                            <th style={{ ...thStyle, textAlign: 'right' }}>Deposits</th><th style={{ ...thStyle, textAlign: 'right' }}>Bookings</th>
+                            <th style={{ ...thStyle, textAlign: 'right' }}>No Shows</th><th style={{ ...thStyle, textAlign: 'right' }}>Cancelled</th>
                           </tr></thead>
                           <tbody>
                             {rows.map((r: any) => (
                               <tr key={r.date}>
-                                <td>{r.date}</td>
-                                <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtP(r.revenue)}</td>
-                                <td style={{ textAlign: 'right', color: r.at_risk > 0 ? CLR.red : CLR.muted }}>{fmtP(r.at_risk)}</td>
-                                <td style={{ textAlign: 'right' }}>{fmtP(r.deposits)}</td>
-                                <td style={{ textAlign: 'right' }}>{r.bookings}</td>
-                                <td style={{ textAlign: 'right', color: r.no_shows > 0 ? CLR.red : CLR.muted }}>{r.no_shows}</td>
-                                <td style={{ textAlign: 'right' }}>{r.cancelled}</td>
+                                <td style={tdStyle}>{r.date}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{fmtP(r.revenue)}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right', color: r.at_risk > 0 ? CLR.red : CLR.muted }}>{fmtP(r.at_risk)}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right' }}>{fmtP(r.deposits)}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right' }}>{r.bookings}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right', color: r.no_shows > 0 ? CLR.red : CLR.muted }}>{r.no_shows}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right' }}>{r.cancelled}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -297,44 +312,44 @@ export default function AdminReportsPage() {
                 const totalBk = rows.reduce((s: number, r: any) => s + r.bookings, 0)
                 return (
                   <>
-                    <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
                       <KpiCard label="Total Revenue" value={fmtK(totalRev)} color={CLR.green} />
                       <KpiCard label="Bookings" value={String(totalBk)} color={CLR.blue} />
                       <KpiCard label="Months" value={String(rows.length)} color={CLR.primary} />
                       <KpiCard label="Avg Monthly" value={rows.length > 0 ? fmtK(totalRev / rows.length) : '£0'} color={CLR.purple} />
                     </div>
 
-                    <div className="card" style={{ marginBottom: '1rem' }}>
+                    <div style={{ background: CLR.card, borderRadius: 16, padding: '1.5rem', marginBottom: '1rem' }}>
                       <CardTitle>Monthly Revenue</CardTitle>
                       <BarChart data={rows.map((r: any) => ({ label: r.month, value: r.revenue }))} color={CLR.green} height={160} />
                     </div>
 
-                    <div className="card">
+                    <div style={{ background: CLR.card, borderRadius: 16, padding: '1.5rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                         <CardTitle>Monthly Breakdown</CardTitle>
-                        <button className="btn btn-sm btn-outline" onClick={() => exportCSV(rows, 'monthly_report.csv')}>↓ CSV</button>
+                        <button style={{ ...btnGhost, ...btnSm }} onClick={() => exportCSV(rows, 'monthly_report.csv')}>↓ CSV</button>
                       </div>
-                      <div className="table-wrap">
-                        <table>
+                      <div style={{ overflow: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                           <thead><tr>
-                            <th>Month</th><th style={{ textAlign: 'right' }}>Revenue</th><th style={{ textAlign: 'right' }}>MoM</th>
-                            <th style={{ textAlign: 'right' }}>Bookings</th><th style={{ textAlign: 'right' }}>No Shows</th><th style={{ textAlign: 'right' }}>Reliability</th>
+                            <th style={thStyle}>Month</th><th style={{ ...thStyle, textAlign: 'right' }}>Revenue</th><th style={{ ...thStyle, textAlign: 'right' }}>MoM</th>
+                            <th style={{ ...thStyle, textAlign: 'right' }}>Bookings</th><th style={{ ...thStyle, textAlign: 'right' }}>No Shows</th><th style={{ ...thStyle, textAlign: 'right' }}>Reliability</th>
                           </tr></thead>
                           <tbody>
                             {rows.map((r: any) => (
                               <tr key={r.month}>
-                                <td style={{ fontWeight: 600 }}>{r.month}</td>
-                                <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtP(r.revenue)}</td>
-                                <td style={{ textAlign: 'right' }}>
+                                <td style={{ ...tdStyle, fontWeight: 600 }}>{r.month}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{fmtP(r.revenue)}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right' }}>
                                   {r.mom_growth != null ? (
                                     <span style={{ color: r.mom_growth >= 0 ? CLR.green : CLR.red, fontWeight: 600 }}>
                                       {r.mom_growth >= 0 ? '▲' : '▼'} {Math.abs(r.mom_growth)}%
                                     </span>
                                   ) : <span style={{ color: CLR.muted }}>—</span>}
                                 </td>
-                                <td style={{ textAlign: 'right' }}>{r.bookings}</td>
-                                <td style={{ textAlign: 'right', color: r.no_shows > 0 ? CLR.red : CLR.muted }}>{r.no_shows}</td>
-                                <td style={{ textAlign: 'right', color: pctClr(r.avg_reliability) }}>{r.avg_reliability}%</td>
+                                <td style={{ ...tdStyle, textAlign: 'right' }}>{r.bookings}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right', color: r.no_shows > 0 ? CLR.red : CLR.muted }}>{r.no_shows}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right', color: pctClr(r.avg_reliability) }}>{r.avg_reliability}%</td>
                               </tr>
                             ))}
                           </tbody>
@@ -356,40 +371,40 @@ export default function AdminReportsPage() {
                 const totalBk = rows.reduce((s: number, r: any) => s + r.bookings, 0)
                 return (
                   <>
-                    <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
                       <KpiCard label="Total Revenue" value={fmtK(totalRev)} color={CLR.green} />
                       <KpiCard label="Bookings" value={String(totalBk)} color={CLR.blue} />
                       <KpiCard label="Active Staff" value={String(rows.length)} color={CLR.primary} />
                       <KpiCard label="Avg per Staff" value={rows.length > 0 ? fmtK(totalRev / rows.length) : '£0'} color={CLR.purple} />
                     </div>
 
-                    <div className="card" style={{ marginBottom: '1rem' }}>
+                    <div style={{ background: CLR.card, borderRadius: 16, padding: '1.5rem', marginBottom: '1rem' }}>
                       <CardTitle>Revenue per Staff</CardTitle>
                       <HBarChart data={rows.map((r: any) => ({ label: r.staff_name, value: r.revenue }))} color={CLR.blue} />
                     </div>
 
-                    <div className="card">
+                    <div style={{ background: CLR.card, borderRadius: 16, padding: '1.5rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                         <CardTitle>Staff Performance</CardTitle>
-                        <button className="btn btn-sm btn-outline" onClick={() => exportCSV(rows, 'staff_report.csv')}>↓ CSV</button>
+                        <button style={{ ...btnGhost, ...btnSm }} onClick={() => exportCSV(rows, 'staff_report.csv')}>↓ CSV</button>
                       </div>
-                      <div className="table-wrap">
-                        <table>
+                      <div style={{ overflow: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                           <thead><tr>
-                            <th>Staff</th><th style={{ textAlign: 'right' }}>Revenue</th><th style={{ textAlign: 'right' }}>Bookings</th>
-                            <th style={{ textAlign: 'right' }}>No Shows</th><th style={{ textAlign: 'right' }}>NS %</th>
-                            <th style={{ textAlign: 'right' }}>Reliability</th><th style={{ textAlign: 'right' }}>At Risk</th>
+                            <th style={thStyle}>Staff</th><th style={{ ...thStyle, textAlign: 'right' }}>Revenue</th><th style={{ ...thStyle, textAlign: 'right' }}>Bookings</th>
+                            <th style={{ ...thStyle, textAlign: 'right' }}>No Shows</th><th style={{ ...thStyle, textAlign: 'right' }}>NS %</th>
+                            <th style={{ ...thStyle, textAlign: 'right' }}>Reliability</th><th style={{ ...thStyle, textAlign: 'right' }}>At Risk</th>
                           </tr></thead>
                           <tbody>
                             {rows.map((r: any) => (
-                              <tr key={r.staff_id} style={{ cursor: 'pointer' }} onClick={() => setStaffDrill(r)}>
-                                <td style={{ fontWeight: 600 }}>{r.staff_name}</td>
-                                <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtP(r.revenue)}</td>
-                                <td style={{ textAlign: 'right' }}>{r.bookings}</td>
-                                <td style={{ textAlign: 'right', color: r.no_shows > 0 ? CLR.red : CLR.muted }}>{r.no_shows}</td>
-                                <td style={{ textAlign: 'right', color: r.no_show_rate > 10 ? CLR.red : CLR.green, fontWeight: 600 }}>{r.no_show_rate}%</td>
-                                <td style={{ textAlign: 'right', color: pctClr(r.avg_reliability) }}>{r.avg_reliability}%</td>
-                                <td style={{ textAlign: 'right', color: r.at_risk > 0 ? CLR.red : CLR.muted }}>{fmtP(r.at_risk)}</td>
+                              <tr key={r.staff_id} style={{ cursor: 'pointer' }} onClick={() => setStaffDrill(r)} onMouseEnter={e => (e.currentTarget.style.background = CLR.cardAlt)} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                                <td style={{ ...tdStyle, fontWeight: 600 }}>{r.staff_name}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{fmtP(r.revenue)}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right' }}>{r.bookings}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right', color: r.no_shows > 0 ? CLR.red : CLR.muted }}>{r.no_shows}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right', color: r.no_show_rate > 10 ? CLR.red : CLR.green, fontWeight: 600 }}>{r.no_show_rate}%</td>
+                                <td style={{ ...tdStyle, textAlign: 'right', color: pctClr(r.avg_reliability) }}>{r.avg_reliability}%</td>
+                                <td style={{ ...tdStyle, textAlign: 'right', color: r.at_risk > 0 ? CLR.red : CLR.muted }}>{fmtP(r.at_risk)}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -406,11 +421,11 @@ export default function AdminReportsPage() {
 
       {/* Staff Drilldown Modal */}
       {staffDrill && (
-        <div className="modal-overlay" onClick={() => setStaffDrill(null)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} onClick={() => setStaffDrill(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ maxWidth: 480, width: '100%', padding: '2rem', background: CLR.cardAlt, borderRadius: 16, color: CLR.text, position: 'relative' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h2 style={{ margin: 0 }}>{staffDrill.staff_name}</h2>
-              <button className="btn btn-ghost" onClick={() => setStaffDrill(null)} style={{ fontSize: '1.3rem' }}>×</button>
+              <h2 style={{ margin: 0, color: CLR.text }}>{staffDrill.staff_name}</h2>
+              <button onClick={() => setStaffDrill(null)} style={{ background: 'none', border: 'none', fontSize: '1.3rem', cursor: 'pointer', color: CLR.muted }}>×</button>
             </div>
             <div style={{ display: 'grid', gap: '0.5rem', fontSize: '0.9rem' }}>
               <Row label="Revenue" value={fmtP(staffDrill.revenue)} bold />
@@ -427,7 +442,7 @@ export default function AdminReportsPage() {
 
       <style>{`
         @media (max-width: 768px) {
-          .rpt-grid-2 { grid-template-columns: 1fr !important; }
+          [data-rpt-grid] { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </div>
@@ -451,15 +466,15 @@ function CardTitle({ children }: { children: React.ReactNode }) {
 
 function KpiCard({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div className="stat-card" style={{ textAlign: 'left', borderLeft: `3px solid ${color}` }}>
-      <div style={{ fontSize: '1.35rem', fontWeight: 700, color }}>{value}</div>
-      <div className="stat-label" style={{ textAlign: 'left' }}>{label}</div>
+    <div style={{ background: CLR.card, borderRadius: 12, padding: '0.75rem 1rem', borderTop: `3px solid ${color}` }}>
+      <div style={{ fontSize: '1.3rem', fontWeight: 800, color: CLR.text }}>{value}</div>
+      <div style={{ fontSize: '0.65rem', color: CLR.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
     </div>
   )
 }
 
 function BarChart({ data, color, height = 120 }: { data: { label: string; value: number }[]; color: string; height?: number }) {
-  if (!data.length) return <div className="empty-state" style={{ height, padding: '1rem' }}>No data</div>
+  if (!data.length) return <div style={{ height, padding: '1rem', textAlign: 'center', color: CLR.muted, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No data</div>
   const max = Math.max(...data.map(d => d.value), 1)
   const barW = Math.max(4, Math.min(20, Math.floor(600 / data.length) - 2))
   return (
@@ -478,7 +493,7 @@ function BarChart({ data, color, height = 120 }: { data: { label: string; value:
 }
 
 function HBarChart({ data, color }: { data: { label: string; value: number }[]; color: string }) {
-  if (!data.length) return <div className="empty-state" style={{ padding: '1rem' }}>No data</div>
+  if (!data.length) return <div style={{ padding: '1rem', textAlign: 'center', color: CLR.muted }}>No data</div>
   const max = Math.max(...data.map(d => d.value), 1)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -497,7 +512,7 @@ function HBarChart({ data, color }: { data: { label: string; value: number }[]; 
 
 function DonutChart({ data }: { data: { label: string; value: number; color: string }[] }) {
   const total = data.reduce((s, d) => s + d.value, 0)
-  if (total === 0) return <div className="empty-state" style={{ padding: '1.5rem' }}>No risk data</div>
+  if (total === 0) return <div style={{ padding: '1.5rem', textAlign: 'center', color: CLR.muted }}>No risk data</div>
   let cumPct = 0
   const segments = data.map(d => {
     const pct = (d.value / total) * 100
