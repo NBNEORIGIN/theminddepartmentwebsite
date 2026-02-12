@@ -356,6 +356,13 @@ class StaffBlockViewSet(viewsets.ModelViewSet):
         blocks = self.get_queryset()
         return Response([self._serialize(b) for b in blocks])
 
+    def _parse_time(self, t_str):
+        from datetime import time as dt_time
+        if not t_str:
+            return dt_time(9, 0)
+        parts = t_str.split(':')
+        return dt_time(int(parts[0]), int(parts[1]) if len(parts) > 1 else 0)
+
     def create(self, request):
         d = request.data
         try:
@@ -363,24 +370,29 @@ class StaffBlockViewSet(viewsets.ModelViewSet):
         except Staff.DoesNotExist:
             return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        from datetime import time as dt_time
-        all_day = d.get('all_day', False)
-        if all_day:
-            start_t = dt_time(0, 0)
-            end_t = dt_time(23, 59)
-        else:
-            start_t = dt_time.fromisoformat(d.get('start_time', '09:00'))
-            end_t = dt_time.fromisoformat(d.get('end_time', '17:00'))
+        try:
+            from datetime import time as dt_time
+            all_day = d.get('all_day', False)
+            if isinstance(all_day, str):
+                all_day = all_day.lower() in ('true', '1', 'yes')
+            if all_day:
+                start_t = dt_time(0, 0)
+                end_t = dt_time(23, 59)
+            else:
+                start_t = self._parse_time(d.get('start_time', '09:00'))
+                end_t = self._parse_time(d.get('end_time', '17:00'))
 
-        block = StaffBlock.objects.create(
-            staff=staff,
-            date=d.get('date'),
-            start_time=start_t,
-            end_time=end_t,
-            reason=d.get('reason', ''),
-            all_day=all_day,
-        )
-        return Response(self._serialize(block), status=status.HTTP_201_CREATED)
+            block = StaffBlock.objects.create(
+                staff=staff,
+                date=d.get('date'),
+                start_time=start_t,
+                end_time=end_t,
+                reason=d.get('reason', ''),
+                all_day=all_day,
+            )
+            return Response(self._serialize(block), status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'error': f'Failed to create block: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, pk=None):
         try:
