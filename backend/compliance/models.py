@@ -312,7 +312,14 @@ class ComplianceItem(models.Model):
         """Calculate next_due_date from last_completed_date + frequency"""
         if not self.last_completed_date or self.frequency_type == 'ad_hoc':
             return self.next_due_date
-        from dateutil.relativedelta import relativedelta
+        try:
+            from dateutil.relativedelta import relativedelta
+        except ImportError:
+            from datetime import timedelta
+            # Fallback if python-dateutil not installed
+            freq_days = {'monthly': 30, 'quarterly': 91, 'annual': 365, 'biennial': 730, '5_year': 1826}
+            days = freq_days.get(self.frequency_type, 365)
+            return self.last_completed_date + timedelta(days=days)
         freq_map = {
             'monthly': relativedelta(months=1),
             'quarterly': relativedelta(months=3),

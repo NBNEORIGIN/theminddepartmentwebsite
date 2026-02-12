@@ -204,40 +204,61 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.stdout.write('Seeding UK compliance baseline...')
+
+        # Disconnect signal to avoid recalculate during bulk creation
+        from django.db.models.signals import post_save, post_delete
+        from compliance.signals import recalculate_score_on_save, recalculate_score_on_delete
+        post_save.disconnect(recalculate_score_on_save)
+        post_delete.disconnect(recalculate_score_on_delete)
+
         today = timezone.now().date()
         created_count = 0
 
         for cat_data in UK_BASELINE:
-            cat, _ = ComplianceCategory.objects.get_or_create(
-                name=cat_data['category'],
-                defaults={'max_score': 10}
-            )
-            self.stdout.write(f'  Category: {cat.name}')
-
-            for item_data in cat_data['items']:
-                obj, created = ComplianceItem.objects.get_or_create(
-                    title=item_data['title'],
-                    category=cat,
-                    defaults={
-                        'description': item_data['description'],
-                        'item_type': item_data['item_type'],
-                        'frequency_type': item_data['frequency_type'],
-                        'evidence_required': item_data['evidence_required'],
-                        'regulatory_ref': item_data['regulatory_ref'],
-                        'legal_reference': item_data['legal_reference'],
-                        'next_due_date': today + timedelta(days=30),
-                        'status': 'DUE_SOON',
-                    }
+            try:
+                cat, _ = ComplianceCategory.objects.get_or_create(
+                    name=cat_data['category'],
+                    defaults={'max_score': 10}
                 )
-                if created:
-                    created_count += 1
-                    self.stdout.write(f'    + {item_data["title"]}')
-                else:
-                    self.stdout.write(f'    = {item_data["title"]} (exists)')
+                self.stdout.write(f'  Category: {cat.name}')
+
+                for item_data in cat_data['items']:
+                    try:
+                        obj, created = ComplianceItem.objects.get_or_create(
+                            title=item_data['title'],
+                            category=cat,
+                            defaults={
+                                'description': item_data['description'],
+                                'item_type': item_data['item_type'],
+                                'frequency_type': item_data['frequency_type'],
+                                'evidence_required': item_data['evidence_required'],
+                                'regulatory_ref': item_data['regulatory_ref'],
+                                'legal_reference': item_data['legal_reference'],
+                                'next_due_date': today + timedelta(days=30),
+                                'due_date': today + timedelta(days=30),
+                                'status': 'DUE_SOON',
+                            }
+                        )
+                        if created:
+                            created_count += 1
+                            self.stdout.write(f'    + {item_data["title"]}')
+                        else:
+                            self.stdout.write(f'    = {item_data["title"]} (exists)')
+                    except Exception as e:
+                        self.stderr.write(f'    ERROR creating {item_data["title"]}: {e}')
+            except Exception as e:
+                self.stderr.write(f'  ERROR with category {cat_data["category"]}: {e}')
+
+        # Reconnect signals
+        post_save.connect(recalculate_score_on_save)
+        post_delete.connect(recalculate_score_on_delete)
 
         self.stdout.write(self.style.SUCCESS(f'\nSeeded {created_count} compliance items.'))
 
         # Recalculate score
-        from compliance.models import PeaceOfMindScore
-        PeaceOfMindScore.recalculate()
-        self.stdout.write(self.style.SUCCESS('Peace of Mind Score recalculated.'))
+        try:
+            from compliance.models import PeaceOfMindScore
+            PeaceOfMindScore.recalculate()
+            self.stdout.write(self.style.SUCCESS('Peace of Mind Score recalculated.'))
+        except Exception as e:
+            self.stderr.write(f'Score recalculation error: {e}')
