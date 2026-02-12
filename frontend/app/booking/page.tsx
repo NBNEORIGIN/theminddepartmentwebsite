@@ -285,7 +285,7 @@ export default function CompactBookingPage() {
               <div
                 key={service.id}
                 className={`compact-service-card ${selectedService?.id === service.id ? 'selected' : ''}`}
-                onClick={() => setSelectedService(service)}
+                onClick={() => { setSelectedService(service); setSelectedStaff(null); setSelectedTime('') }}
               >
                 <h3>{service.name}</h3>
                 <div className="price">{Number(service.price) > 0 ? `\u00A3${service.price}` : 'Contact for pricing'}</div>
@@ -299,7 +299,18 @@ export default function CompactBookingPage() {
         <div className="booking-section">
           <h2>2. Choose Facilitator</h2>
           <div className="staff-grid">
-            {staff.map((member) => (
+            {staff.filter((member: any) => {
+              if (!selectedService) return true
+              // If staff has services array, filter by selected service
+              if (member.services && Array.isArray(member.services)) {
+                return member.services.some((s: any) => s.id === selectedService.id)
+              }
+              // If staff has service_ids array, filter by selected service
+              if (member.service_ids && Array.isArray(member.service_ids)) {
+                return member.service_ids.includes(selectedService.id)
+              }
+              return true
+            }).map((member) => (
               <div
                 key={member.id}
                 className={`staff-card ${selectedStaff?.id === member.id ? 'selected' : ''}`}
