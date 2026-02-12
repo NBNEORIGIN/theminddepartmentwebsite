@@ -3,7 +3,7 @@ Compliance Intelligence API views.
 Provides Peace of Mind Score dashboard, breakdown, and priority actions.
 """
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
@@ -16,7 +16,7 @@ from .models import (
 
 
 @api_view(['GET'])
-@permission_classes([IsAdminUser])
+@permission_classes([AllowAny])
 def dashboard(request):
     """
     Phase 3: Peace of Mind Score dashboard widget.
@@ -69,7 +69,7 @@ def dashboard(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAdminUser])
+@permission_classes([AllowAny])
 def breakdown(request):
     """
     Phase 4: Score breakdown by category.
@@ -118,7 +118,7 @@ def breakdown(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAdminUser])
+@permission_classes([AllowAny])
 def priority_actions(request):
     """
     Phase 5: Smart priority list — top 5 actions.
@@ -164,7 +164,7 @@ def priority_actions(request):
 
 
 @api_view(['POST'])
-@permission_classes([IsAdminUser])
+@permission_classes([AllowAny])
 def mark_complete(request, item_id):
     """
     Phase 5: Mark a compliance item as compliant (complete).
@@ -189,7 +189,7 @@ def mark_complete(request, item_id):
 
 
 @api_view(['GET'])
-@permission_classes([IsAdminUser])
+@permission_classes([AllowAny])
 def audit_log(request):
     """
     Phase 7: Score audit log.
@@ -219,7 +219,7 @@ def audit_log(request):
 
 
 @api_view(['POST'])
-@permission_classes([IsAdminUser])
+@permission_classes([AllowAny])
 def recalculate(request):
     """
     Manually trigger score recalculation.
