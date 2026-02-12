@@ -18,6 +18,15 @@ from .models import (
 )
 
 
+def _safe_date(val):
+    """Ensure val is a string (isoformat) regardless of type."""
+    if val is None:
+        return None
+    if isinstance(val, str):
+        return val
+    return val.isoformat()
+
+
 def _serialize_item(item):
     """Serialize a ComplianceItem to dict."""
     return {
@@ -29,10 +38,10 @@ def _serialize_item(item):
         'item_type': item.item_type,
         'status': item.status,
         'frequency_type': item.frequency_type,
-        'due_date': item.due_date.isoformat() if item.due_date else None,
-        'next_due_date': item.next_due_date.isoformat() if item.next_due_date else None,
-        'last_completed_date': item.last_completed_date.isoformat() if item.last_completed_date else None,
-        'completed_at': item.completed_at.isoformat() if item.completed_at else None,
+        'due_date': _safe_date(item.due_date),
+        'next_due_date': _safe_date(item.next_due_date),
+        'last_completed_date': _safe_date(item.last_completed_date),
+        'completed_at': _safe_date(item.completed_at),
         'completed_by': item.completed_by,
         'regulatory_ref': item.regulatory_ref,
         'legal_reference': item.legal_reference,
@@ -42,15 +51,6 @@ def _serialize_item(item):
         'weight': item.weight,
         'created_at': item.created_at.isoformat(),
     }
-
-
-def _safe_date(val):
-    """Ensure val is a string (isoformat) regardless of type."""
-    if val is None:
-        return None
-    if isinstance(val, str):
-        return val
-    return val.isoformat()
 
 
 def _serialize_accident(a):
