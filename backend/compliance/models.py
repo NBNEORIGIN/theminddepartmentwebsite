@@ -295,6 +295,17 @@ class ComplianceItem(models.Model):
     def achieved_weight(self):
         return self.weight * self.status_factor
 
+    def _ensure_date(self, val):
+        """Convert string to date if needed."""
+        if val and isinstance(val, str):
+            from datetime import date as dt_date
+            try:
+                parts = val.split('-')
+                return dt_date(int(parts[0]), int(parts[1]), int(parts[2]))
+            except (ValueError, IndexError):
+                return None
+        return val
+
     def compute_status(self):
         """Compute status from next_due_date"""
         if not self.next_due_date:
@@ -302,9 +313,12 @@ class ComplianceItem(models.Model):
         from django.utils import timezone
         from datetime import timedelta
         today = timezone.now().date()
-        if self.next_due_date < today:
+        due = self._ensure_date(self.next_due_date)
+        if not due:
+            return 'COMPLIANT'
+        if due < today:
             return 'OVERDUE'
-        elif self.next_due_date <= today + timedelta(days=30):
+        elif due <= today + timedelta(days=30):
             return 'DUE_SOON'
         return 'COMPLIANT'
 
@@ -333,6 +347,9 @@ class ComplianceItem(models.Model):
         return self.next_due_date
 
     def save(self, *args, **kwargs):
+        # Ensure date fields are actual date objects
+        self.next_due_date = self._ensure_date(self.next_due_date)
+        self.last_completed_date = self._ensure_date(self.last_completed_date)
         # Auto-compute status from dates
         computed = self.compute_status()
         if computed != self.status:
