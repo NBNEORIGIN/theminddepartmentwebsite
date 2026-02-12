@@ -6,6 +6,7 @@ class ServiceSerializer(serializers.ModelSerializer):
     price_pence = serializers.IntegerField(read_only=True)
     is_active = serializers.BooleanField(source='active', required=False)
     staff_ids = serializers.SerializerMethodField()
+    price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=0)
 
     class Meta:
         model = Service

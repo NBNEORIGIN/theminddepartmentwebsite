@@ -31,6 +31,17 @@ class ServiceViewSet(viewsets.ModelViewSet):
         else:
             serializer.save()
 
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        try:
+            self.perform_destroy(instance)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Exception:
+            return Response(
+                {'error': 'Cannot delete this service because it has existing bookings. Disable it instead.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
     @action(detail=True, methods=['post'], url_path='assign-staff')
     def assign_staff(self, request, pk=None):
         """POST /api/services/<id>/assign-staff/ {staff_ids: [1,2,3]}"""
