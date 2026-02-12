@@ -23,4 +23,5 @@ urlpatterns = [
     path('accidents/', views.accidents_list, name='accidents-list'),
     path('accidents/create/', views.accidents_create, name='accidents-create'),
     path('accidents/<int:accident_id>/update/', views.accidents_update, name='accidents-update'),
+    path('accidents/<int:accident_id>/delete/', views.accidents_delete, name='accidents-delete'),
 ]

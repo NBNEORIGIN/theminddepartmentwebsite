@@ -339,6 +339,18 @@ def accidents_create(request):
     return Response(_serialize_accident(a), status=status.HTTP_201_CREATED)
 
 
+@api_view(['DELETE'])
+@permission_classes([AllowAny])
+def accidents_delete(request, accident_id):
+    """DELETE /api/compliance/accidents/<id>/delete/"""
+    try:
+        a = AccidentReport.objects.get(id=accident_id)
+    except AccidentReport.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+    a.delete()
+    return Response({'message': 'Deleted'}, status=status.HTTP_204_NO_CONTENT)
+
+
 @api_view(['PATCH'])
 @permission_classes([AllowAny])
 def accidents_update(request, accident_id):
