@@ -9,6 +9,13 @@ from .models_intake import IntakeProfile, IntakeWellbeingDisclaimer
 # Import payment models
 from .models_payment import ClassPackage, ClientCredit, PaymentTransaction
 
+# Import availability engine models
+from .models_availability import (
+    WorkingPattern, WorkingPatternRule,
+    AvailabilityOverride, AvailabilityOverridePeriod,
+    LeaveRequest, BlockedTime, Shift, TimesheetEntry,
+)
+
 class Service(models.Model):
     PAYMENT_TYPE_CHOICES = [
         ('full', 'Full Payment'),

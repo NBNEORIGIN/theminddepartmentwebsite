@@ -25,6 +25,12 @@ from bookings.views_payment import ClassPackageViewSet, ClientCreditViewSet, Pay
 from bookings.views_stripe import create_checkout_session, stripe_webhook
 from bookings.views_dashboard import dashboard_summary, backfill_sbe
 from bookings.views_reports import reports_overview, reports_daily, reports_monthly, reports_staff, reports_insights
+from bookings.views_availability import (
+    WorkingPatternViewSet, WorkingPatternRuleViewSet,
+    AvailabilityOverrideViewSet, LeaveRequestViewSet,
+    BlockedTimeViewSet, ShiftViewSet, TimesheetEntryViewSet,
+    staff_availability_view, staff_free_slots_view,
+)
 from core.auth_views import login_view, me_view, set_password_view
 
 router = DefaultRouter()
@@ -42,6 +48,14 @@ router.register(r'intake-disclaimer', IntakeWellbeingDisclaimerViewSet)
 router.register(r'packages', ClassPackageViewSet)
 router.register(r'credits', ClientCreditViewSet)
 router.register(r'payment', PaymentIntegrationViewSet, basename='payment')
+# Availability engine
+router.register(r'working-patterns', WorkingPatternViewSet, basename='working-pattern')
+router.register(r'working-pattern-rules', WorkingPatternRuleViewSet, basename='working-pattern-rule')
+router.register(r'availability-overrides', AvailabilityOverrideViewSet, basename='availability-override')
+router.register(r'leave-requests', LeaveRequestViewSet, basename='leave-request')
+router.register(r'blocked-times', BlockedTimeViewSet, basename='blocked-time')
+router.register(r'shifts', ShiftViewSet, basename='shift')
+router.register(r'timesheets', TimesheetEntryViewSet, basename='timesheet')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -66,5 +80,8 @@ urlpatterns = [
     path('api/reports/monthly/', reports_monthly, name='reports-monthly'),
     path('api/reports/staff/', reports_staff, name='reports-staff'),
     path('api/reports/insights/', reports_insights, name='reports-insights'),
+    # Availability engine
+    path('api/availability/', staff_availability_view, name='staff-availability'),
+    path('api/availability/slots/', staff_free_slots_view, name='staff-free-slots'),
     path('', include('core.urls')),
 ]
