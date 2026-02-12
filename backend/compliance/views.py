@@ -1,6 +1,7 @@
 """
 Compliance Intelligence API views.
-Provides Peace of Mind Score dashboard, breakdown, and priority actions.
+Provides Peace of Mind Score dashboard, compliance register CRUD,
+calendar data, accident log, and priority actions.
 """
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -8,28 +9,78 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
 from django.db.models import Count, Q
+from datetime import timedelta
+import calendar as cal_mod
 
 from .models import (
     ComplianceItem, ComplianceCategory, PeaceOfMindScore,
-    ScoreAuditLog, IncidentReport, Equipment,
+    ScoreAuditLog, IncidentReport, Equipment, AccidentReport,
 )
 
+
+def _serialize_item(item):
+    """Serialize a ComplianceItem to dict."""
+    return {
+        'id': item.id,
+        'title': item.title,
+        'description': item.description,
+        'category': item.category.name,
+        'category_id': item.category_id,
+        'item_type': item.item_type,
+        'status': item.status,
+        'frequency_type': item.frequency_type,
+        'due_date': item.due_date.isoformat() if item.due_date else None,
+        'next_due_date': item.next_due_date.isoformat() if item.next_due_date else None,
+        'last_completed_date': item.last_completed_date.isoformat() if item.last_completed_date else None,
+        'completed_at': item.completed_at.isoformat() if item.completed_at else None,
+        'completed_by': item.completed_by,
+        'regulatory_ref': item.regulatory_ref,
+        'legal_reference': item.legal_reference,
+        'evidence_required': item.evidence_required,
+        'document': item.document.url if item.document else None,
+        'notes': item.notes,
+        'weight': item.weight,
+        'created_at': item.created_at.isoformat(),
+    }
+
+
+def _serialize_accident(a):
+    """Serialize an AccidentReport to dict."""
+    return {
+        'id': a.id,
+        'date': a.date.isoformat(),
+        'time': a.time.strftime('%H:%M') if a.time else None,
+        'location': a.location,
+        'person_involved': a.person_involved,
+        'person_role': a.person_role,
+        'description': a.description,
+        'severity': a.severity,
+        'status': a.status,
+        'riddor_reportable': a.riddor_reportable,
+        'hse_reference': a.hse_reference,
+        'riddor_reported_date': a.riddor_reported_date.isoformat() if a.riddor_reported_date else None,
+        'follow_up_required': a.follow_up_required,
+        'follow_up_notes': a.follow_up_notes,
+        'follow_up_completed': a.follow_up_completed,
+        'follow_up_completed_date': a.follow_up_completed_date.isoformat() if a.follow_up_completed_date else None,
+        'document': a.document.url if a.document else None,
+        'reported_by': a.reported_by,
+        'created_at': a.created_at.isoformat(),
+    }
+
+
+# ========== DASHBOARD ==========
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def dashboard(request):
     """
-    Phase 3: Peace of Mind Score dashboard widget.
-    Returns score, colour, interpretation, change messaging.
-    
     GET /api/compliance/dashboard/
     """
     score_obj = PeaceOfMindScore.objects.filter(pk=1).first()
-
     if not score_obj:
         score_obj = PeaceOfMindScore.recalculate()
 
-    # Phase 6: Score change messaging
     change_message = None
     change = score_obj.score_change
     if change > 0:
@@ -41,14 +92,15 @@ def dashboard(request):
         else:
             change_message = f"Score decreased by {abs(change)}%."
 
-    # Open incidents count
     open_incidents = IncidentReport.objects.exclude(status__in=['RESOLVED', 'CLOSED']).count()
-
-    # Overdue equipment count
     today = timezone.now().date()
     overdue_equipment = Equipment.objects.filter(
         next_inspection__lt=today
     ).exclude(status='OUT_OF_SERVICE').count()
+
+    # Accident counts
+    open_accidents = AccidentReport.objects.exclude(status='CLOSED').count()
+    riddor_count = AccidentReport.objects.filter(riddor_reportable=True).count()
 
     return Response({
         'score': score_obj.score,
@@ -64,22 +116,236 @@ def dashboard(request):
         'best_practice_items': score_obj.best_practice_items,
         'open_incidents': open_incidents,
         'overdue_equipment': overdue_equipment,
+        'open_accidents': open_accidents,
+        'riddor_count': riddor_count,
         'last_calculated_at': score_obj.last_calculated_at.isoformat(),
     })
 
 
+# ========== COMPLIANCE REGISTER (CRUD) ==========
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def items_list(request):
+    """
+    GET /api/compliance/items/
+    Optional filters: ?status=OVERDUE&type=LEGAL&category=Fire+Safety
+    """
+    qs = ComplianceItem.objects.select_related('category').all()
+    if request.query_params.get('status'):
+        qs = qs.filter(status=request.query_params['status'])
+    if request.query_params.get('type'):
+        qs = qs.filter(item_type=request.query_params['type'])
+    if request.query_params.get('category'):
+        qs = qs.filter(category__name=request.query_params['category'])
+
+    return Response([_serialize_item(i) for i in qs])
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def items_create(request):
+    """
+    POST /api/compliance/items/create/
+    """
+    d = request.data
+    cat_name = d.get('category', '')
+    cat, _ = ComplianceCategory.objects.get_or_create(name=cat_name, defaults={'max_score': 10})
+
+    item = ComplianceItem.objects.create(
+        title=d.get('title', ''),
+        description=d.get('description', ''),
+        category=cat,
+        item_type=d.get('item_type', 'BEST_PRACTICE'),
+        frequency_type=d.get('frequency_type', 'annual'),
+        next_due_date=d.get('next_due_date') or None,
+        evidence_required=d.get('evidence_required', False),
+        regulatory_ref=d.get('regulatory_ref', ''),
+        legal_reference=d.get('legal_reference', ''),
+        notes=d.get('notes', ''),
+    )
+    return Response(_serialize_item(item), status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def items_detail(request, item_id):
+    """GET /api/compliance/items/<id>/"""
+    try:
+        item = ComplianceItem.objects.select_related('category').get(id=item_id)
+    except ComplianceItem.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+    return Response(_serialize_item(item))
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def mark_complete(request, item_id):
+    """
+    POST /api/compliance/items/<id>/complete/
+    Accepts: completed_date, completed_by, comments, evidence (file)
+    Auto-recalculates next_due_date based on frequency_type.
+    """
+    try:
+        item = ComplianceItem.objects.get(id=item_id)
+    except ComplianceItem.DoesNotExist:
+        return Response({'error': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    completed_date_str = request.data.get('completed_date')
+    if completed_date_str:
+        from datetime import date as dt_date
+        try:
+            parts = completed_date_str.split('-')
+            completed_date = dt_date(int(parts[0]), int(parts[1]), int(parts[2]))
+        except (ValueError, IndexError):
+            completed_date = timezone.now().date()
+    else:
+        completed_date = timezone.now().date()
+
+    item.status = 'COMPLIANT'
+    item.completed_at = timezone.now()
+    item.last_completed_date = completed_date
+    item.completed_by = request.data.get('completed_by', '')
+    if request.data.get('comments'):
+        item.notes = request.data['comments']
+
+    # Handle evidence file upload
+    if request.FILES.get('evidence'):
+        item.document = request.FILES['evidence']
+
+    # Auto-recalculate next_due_date
+    new_due = item.compute_next_due()
+    if new_due:
+        item.next_due_date = new_due
+
+    item.save()
+
+    return Response({
+        'id': item.id,
+        'title': item.title,
+        'status': 'COMPLIANT',
+        'next_due_date': item.next_due_date.isoformat() if item.next_due_date else None,
+        'message': f'"{item.title}" marked as compliant. Next due: {item.next_due_date}',
+    })
+
+
+# ========== CALENDAR ==========
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def calendar_data(request):
+    """
+    GET /api/compliance/calendar/?year=2026&month=2
+    Returns items grouped by date for the given month.
+    """
+    today = timezone.now().date()
+    year = int(request.query_params.get('year', today.year))
+    month = int(request.query_params.get('month', today.month))
+
+    first_day = today.replace(year=year, month=month, day=1)
+    _, last_day_num = cal_mod.monthrange(year, month)
+    last_day = first_day.replace(day=last_day_num)
+
+    items = ComplianceItem.objects.select_related('category').filter(
+        next_due_date__gte=first_day,
+        next_due_date__lte=last_day,
+    )
+
+    # Group by date
+    days = {}
+    for item in items:
+        d = item.next_due_date.isoformat()
+        if d not in days:
+            days[d] = []
+        colour = 'red' if item.status == 'OVERDUE' else ('amber' if item.status == 'DUE_SOON' else 'green')
+        days[d].append({
+            'id': item.id,
+            'title': item.title,
+            'item_type': item.item_type,
+            'status': item.status,
+            'colour': colour,
+            'category': item.category.name,
+        })
+
+    return Response({
+        'year': year,
+        'month': month,
+        'days': days,
+    })
+
+
+# ========== ACCIDENT LOG ==========
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def accidents_list(request):
+    """GET /api/compliance/accidents/"""
+    qs = AccidentReport.objects.all()
+    if request.query_params.get('status'):
+        qs = qs.filter(status=request.query_params['status'])
+    if request.query_params.get('riddor'):
+        qs = qs.filter(riddor_reportable=True)
+    return Response([_serialize_accident(a) for a in qs])
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def accidents_create(request):
+    """POST /api/compliance/accidents/create/"""
+    d = request.data
+    time_val = None
+    if d.get('time'):
+        from datetime import time as dt_time
+        parts = d['time'].split(':')
+        time_val = dt_time(int(parts[0]), int(parts[1]))
+
+    a = AccidentReport.objects.create(
+        date=d.get('date'),
+        time=time_val,
+        location=d.get('location', ''),
+        person_involved=d.get('person_involved', ''),
+        person_role=d.get('person_role', ''),
+        description=d.get('description', ''),
+        severity=d.get('severity', 'MINOR'),
+        riddor_reportable=d.get('riddor_reportable', False),
+        hse_reference=d.get('hse_reference', ''),
+        follow_up_required=d.get('follow_up_required', False),
+        reported_by=d.get('reported_by', ''),
+    )
+    if request.FILES.get('document'):
+        a.document = request.FILES['document']
+        a.save()
+    return Response(_serialize_accident(a), status=status.HTTP_201_CREATED)
+
+
+@api_view(['PATCH'])
+@permission_classes([AllowAny])
+def accidents_update(request, accident_id):
+    """PATCH /api/compliance/accidents/<id>/update/"""
+    try:
+        a = AccidentReport.objects.get(id=accident_id)
+    except AccidentReport.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    d = request.data
+    for field in ['status', 'severity', 'hse_reference', 'riddor_reported_date',
+                   'follow_up_notes', 'follow_up_completed', 'follow_up_completed_date',
+                   'riddor_reportable', 'description', 'location']:
+        if field in d:
+            setattr(a, field, d[field])
+    if request.FILES.get('document'):
+        a.document = request.FILES['document']
+    a.save()
+    return Response(_serialize_accident(a))
+
+
+# ========== EXISTING ENDPOINTS (preserved) ==========
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def breakdown(request):
-    """
-    Phase 4: Score breakdown by category.
-    Supports ?type=LEGAL or ?type=BEST_PRACTICE filtering.
-    
-    GET /api/compliance/breakdown/
-    GET /api/compliance/breakdown/?type=LEGAL
-    """
+    """GET /api/compliance/breakdown/"""
     item_type_filter = request.query_params.get('type')
-
     categories = ComplianceCategory.objects.all()
     result = []
 
@@ -87,15 +353,12 @@ def breakdown(request):
         items = cat.items.all()
         if item_type_filter:
             items = items.filter(item_type=item_type_filter)
-
         total = items.count()
         if total == 0:
             continue
-
         compliant = items.filter(status='COMPLIANT').count()
         due_soon = items.filter(status='DUE_SOON').count()
         overdue = items.filter(status='OVERDUE').count()
-
         cat_total_weight = sum(i.weight for i in items)
         cat_achieved = sum(i.achieved_weight for i in items)
         cat_pct = round((cat_achieved / cat_total_weight) * 100) if cat_total_weight > 0 else 100
@@ -111,44 +374,23 @@ def breakdown(request):
             'current_score': cat.current_score,
         })
 
-    return Response({
-        'categories': result,
-        'filter': item_type_filter or 'all',
-    })
+    return Response({'categories': result, 'filter': item_type_filter or 'all'})
 
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def priority_actions(request):
-    """
-    Phase 5: Smart priority list — top 5 actions.
-    Sorted by: 1) Overdue LEGAL, 2) Overdue BEST_PRACTICE, 3) Due Soon LEGAL
-    
-    GET /api/compliance/priorities/
-    """
-    # Build priority ordering: overdue legal first, then overdue best practice, then due soon legal
-    overdue_legal = ComplianceItem.objects.filter(
-        status='OVERDUE', item_type='LEGAL'
-    ).order_by('due_date')
+    """GET /api/compliance/priorities/"""
+    overdue_legal = ComplianceItem.objects.filter(status='OVERDUE', item_type='LEGAL').order_by('due_date')
+    overdue_bp = ComplianceItem.objects.filter(status='OVERDUE', item_type='BEST_PRACTICE').order_by('due_date')
+    due_soon_legal = ComplianceItem.objects.filter(status='DUE_SOON', item_type='LEGAL').order_by('due_date')
+    due_soon_bp = ComplianceItem.objects.filter(status='DUE_SOON', item_type='BEST_PRACTICE').order_by('due_date')
 
-    overdue_bp = ComplianceItem.objects.filter(
-        status='OVERDUE', item_type='BEST_PRACTICE'
-    ).order_by('due_date')
-
-    due_soon_legal = ComplianceItem.objects.filter(
-        status='DUE_SOON', item_type='LEGAL'
-    ).order_by('due_date')
-
-    due_soon_bp = ComplianceItem.objects.filter(
-        status='DUE_SOON', item_type='BEST_PRACTICE'
-    ).order_by('due_date')
-
-    # Combine in priority order, take top 5
     combined = list(overdue_legal) + list(overdue_bp) + list(due_soon_legal) + list(due_soon_bp)
-    top_5 = combined[:5]
+    top_items = combined[:10]
 
     actions = []
-    for item in top_5:
+    for item in top_items:
         actions.append({
             'id': item.id,
             'title': item.title,
@@ -156,50 +398,34 @@ def priority_actions(request):
             'item_type': item.item_type,
             'status': item.status,
             'due_date': item.due_date.isoformat() if item.due_date else None,
+            'next_due_date': item.next_due_date.isoformat() if item.next_due_date else None,
             'regulatory_ref': item.regulatory_ref,
+            'legal_reference': item.legal_reference,
+            'frequency_type': item.frequency_type,
+            'evidence_required': item.evidence_required,
             'weight': item.weight,
         })
 
     return Response({'actions': actions})
 
 
-@api_view(['POST'])
+@api_view(['GET'])
 @permission_classes([AllowAny])
-def mark_complete(request, item_id):
-    """
-    Phase 5: Mark a compliance item as compliant (complete).
-    
-    POST /api/compliance/items/<id>/complete/
-    """
-    try:
-        item = ComplianceItem.objects.get(id=item_id)
-    except ComplianceItem.DoesNotExist:
-        return Response({'error': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
-
-    item.status = 'COMPLIANT'
-    item.completed_at = timezone.now()
-    item.save()  # Signal triggers recalculation
-
-    return Response({
-        'id': item.id,
-        'title': item.title,
-        'status': 'COMPLIANT',
-        'message': f'"{item.title}" marked as compliant.',
-    })
+def categories_list(request):
+    """GET /api/compliance/categories/"""
+    cats = ComplianceCategory.objects.all()
+    return Response([
+        {'id': c.id, 'name': c.name, 'max_score': c.max_score, 'current_score': c.current_score}
+        for c in cats
+    ])
 
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def audit_log(request):
-    """
-    Phase 7: Score audit log.
-    
-    GET /api/compliance/audit-log/
-    GET /api/compliance/audit-log/?limit=20
-    """
+    """GET /api/compliance/audit-log/"""
     limit = int(request.query_params.get('limit', 20))
     logs = ScoreAuditLog.objects.all()[:limit]
-
     return Response({
         'logs': [
             {
@@ -221,19 +447,12 @@ def audit_log(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def recalculate(request):
-    """
-    Manually trigger score recalculation.
-    
-    POST /api/compliance/recalculate/
-    """
+    """POST /api/compliance/recalculate/"""
     result = PeaceOfMindScore.recalculate()
-
-    # Update trigger to manual
     latest_log = ScoreAuditLog.objects.order_by('-calculated_at').first()
     if latest_log:
         latest_log.trigger = 'manual'
         latest_log.save(update_fields=['trigger'])
-
     return Response({
         'score': result.score,
         'previous_score': result.previous_score,

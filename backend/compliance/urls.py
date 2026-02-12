@@ -4,10 +4,22 @@ from . import views
 app_name = 'compliance'
 
 urlpatterns = [
+    # Dashboard & scoring
     path('dashboard/', views.dashboard, name='dashboard'),
     path('breakdown/', views.breakdown, name='breakdown'),
     path('priorities/', views.priority_actions, name='priorities'),
-    path('items/<int:item_id>/complete/', views.mark_complete, name='mark-complete'),
     path('audit-log/', views.audit_log, name='audit-log'),
     path('recalculate/', views.recalculate, name='recalculate'),
+    path('categories/', views.categories_list, name='categories'),
+    # Compliance register CRUD
+    path('items/', views.items_list, name='items-list'),
+    path('items/create/', views.items_create, name='items-create'),
+    path('items/<int:item_id>/', views.items_detail, name='items-detail'),
+    path('items/<int:item_id>/complete/', views.mark_complete, name='mark-complete'),
+    # Calendar
+    path('calendar/', views.calendar_data, name='calendar'),
+    # Accident log
+    path('accidents/', views.accidents_list, name='accidents-list'),
+    path('accidents/create/', views.accidents_create, name='accidents-create'),
+    path('accidents/<int:accident_id>/update/', views.accidents_update, name='accidents-update'),
 ]

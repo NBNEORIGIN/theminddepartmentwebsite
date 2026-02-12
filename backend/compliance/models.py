@@ -227,6 +227,7 @@ class ComplianceItem(models.Model):
     """
     Individual compliance item that contributes to the Peace of Mind Score.
     Each item has a type (LEGAL or BEST_PRACTICE) and a status.
+    Enhanced with frequency, evidence, and completion tracking.
     """
     TYPE_CHOICES = [
         ('LEGAL', 'Legal Requirement'),
@@ -237,6 +238,14 @@ class ComplianceItem(models.Model):
         ('DUE_SOON', 'Due Soon'),
         ('OVERDUE', 'Overdue'),
     ]
+    FREQUENCY_CHOICES = [
+        ('monthly', 'Monthly'),
+        ('quarterly', 'Quarterly'),
+        ('annual', 'Annual'),
+        ('biennial', 'Every 2 Years'),
+        ('5_year', 'Every 5 Years'),
+        ('ad_hoc', 'Ad Hoc / One-off'),
+    ]
 
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, default='')
@@ -246,7 +255,17 @@ class ComplianceItem(models.Model):
     due_date = models.DateField(null=True, blank=True, db_index=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     regulatory_ref = models.CharField(max_length=255, blank=True, default='', help_text='Legal/regulatory reference')
+    legal_reference = models.CharField(max_length=500, blank=True, default='', help_text='Full legal reference e.g. Regulatory Reform (Fire Safety) Order 2005')
     notes = models.TextField(blank=True, default='')
+    # Frequency and scheduling
+    frequency_type = models.CharField(max_length=20, choices=FREQUENCY_CHOICES, default='annual', db_index=True)
+    last_completed_date = models.DateField(null=True, blank=True)
+    next_due_date = models.DateField(null=True, blank=True, db_index=True)
+    # Evidence
+    evidence_required = models.BooleanField(default=False, help_text='Whether evidence upload is required on completion')
+    document = models.FileField(upload_to='compliance/evidence/%Y/%m/', null=True, blank=True, help_text='Latest evidence document')
+    completed_by = models.CharField(max_length=255, blank=True, default='', help_text='Name of person who completed')
+    # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -275,6 +294,97 @@ class ComplianceItem(models.Model):
     @property
     def achieved_weight(self):
         return self.weight * self.status_factor
+
+    def compute_status(self):
+        """Compute status from next_due_date"""
+        if not self.next_due_date:
+            return 'COMPLIANT'
+        from django.utils import timezone
+        from datetime import timedelta
+        today = timezone.now().date()
+        if self.next_due_date < today:
+            return 'OVERDUE'
+        elif self.next_due_date <= today + timedelta(days=30):
+            return 'DUE_SOON'
+        return 'COMPLIANT'
+
+    def compute_next_due(self):
+        """Calculate next_due_date from last_completed_date + frequency"""
+        if not self.last_completed_date or self.frequency_type == 'ad_hoc':
+            return self.next_due_date
+        from dateutil.relativedelta import relativedelta
+        freq_map = {
+            'monthly': relativedelta(months=1),
+            'quarterly': relativedelta(months=3),
+            'annual': relativedelta(years=1),
+            'biennial': relativedelta(years=2),
+            '5_year': relativedelta(years=5),
+        }
+        delta = freq_map.get(self.frequency_type)
+        if delta:
+            return self.last_completed_date + delta
+        return self.next_due_date
+
+    def save(self, *args, **kwargs):
+        # Auto-compute status from dates
+        computed = self.compute_status()
+        if computed != self.status:
+            self.status = computed
+        # Sync due_date with next_due_date for backward compat
+        if self.next_due_date:
+            self.due_date = self.next_due_date
+        super().save(*args, **kwargs)
+
+
+class AccidentReport(models.Model):
+    """
+    UK-compliant accident/incident log with RIDDOR support.
+    Separate from IncidentReport which is for general H&S incidents.
+    """
+    SEVERITY_CHOICES = [
+        ('MINOR', 'Minor (First Aid)'),
+        ('MODERATE', 'Moderate (Medical Attention)'),
+        ('MAJOR', 'Major (Hospital)'),
+        ('FATAL', 'Fatal'),
+    ]
+    STATUS_CHOICES = [
+        ('OPEN', 'Open'),
+        ('INVESTIGATING', 'Under Investigation'),
+        ('FOLLOW_UP', 'Follow-up Required'),
+        ('CLOSED', 'Closed'),
+    ]
+
+    date = models.DateField(db_index=True)
+    time = models.TimeField(null=True, blank=True)
+    location = models.CharField(max_length=255, blank=True, default='')
+    person_involved = models.CharField(max_length=255, help_text='Name of person involved')
+    person_role = models.CharField(max_length=100, blank=True, default='', help_text='e.g. Staff, Client, Visitor')
+    description = models.TextField(help_text='Full description of the accident/incident')
+    severity = models.CharField(max_length=20, choices=SEVERITY_CHOICES, default='MINOR', db_index=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='OPEN', db_index=True)
+    # RIDDOR
+    riddor_reportable = models.BooleanField(default=False, help_text='Is this reportable under RIDDOR?')
+    hse_reference = models.CharField(max_length=100, blank=True, default='', help_text='HSE reference number if reported')
+    riddor_reported_date = models.DateField(null=True, blank=True)
+    # Follow-up
+    follow_up_required = models.BooleanField(default=False)
+    follow_up_notes = models.TextField(blank=True, default='')
+    follow_up_completed = models.BooleanField(default=False)
+    follow_up_completed_date = models.DateField(null=True, blank=True)
+    # Evidence
+    document = models.FileField(upload_to='compliance/accidents/%Y/%m/', null=True, blank=True)
+    # Metadata
+    reported_by = models.CharField(max_length=255, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date', '-time']
+        verbose_name = 'Accident Report'
+        verbose_name_plural = 'Accident Reports'
+
+    def __str__(self):
+        return f"{self.date} — {self.person_involved} ({self.get_severity_display()})"
 
 
 class PeaceOfMindScore(models.Model):
