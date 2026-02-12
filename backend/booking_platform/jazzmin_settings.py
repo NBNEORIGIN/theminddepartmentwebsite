@@ -77,6 +77,7 @@ JAZZMIN_SETTINGS = {
         "compliance.PeaceOfMindScore",
         "compliance.ScoreAuditLog",
         "compliance.HazardFinding",
+        "compliance.ComplianceCategory",
     ],
 
     # List of apps (and/or models) to base side menu ordering off of (does not need to contain all apps/models)
