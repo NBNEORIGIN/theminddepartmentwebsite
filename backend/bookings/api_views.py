@@ -406,6 +406,24 @@ The Mind Department"""
             pass
         return Response(BookingSerializer(booking).data)
 
+    @action(detail=True, methods=['post'], url_path='update-notes')
+    def update_notes(self, request, pk=None):
+        """POST /api/bookings/<id>/update-notes/ — Update booking internal notes"""
+        booking = self.get_object()
+        notes = request.data.get('notes', '')
+        booking.notes = notes
+        booking.save(update_fields=['notes', 'updated_at'])
+        return Response(BookingSerializer(booking).data)
+
+    @action(detail=True, methods=['post'], url_path='update-client-notes')
+    def update_client_notes(self, request, pk=None):
+        """POST /api/bookings/<id>/update-client-notes/ — Update client profile notes"""
+        booking = self.get_object()
+        notes = request.data.get('notes', '')
+        booking.client.notes = notes
+        booking.client.save(update_fields=['notes', 'updated_at'])
+        return Response(BookingSerializer(booking).data)
+
     @action(detail=True, methods=['post'])
     def override(self, request, pk=None):
         """POST /api/bookings/<id>/override/ — Owner overrides SBE recommendation"""

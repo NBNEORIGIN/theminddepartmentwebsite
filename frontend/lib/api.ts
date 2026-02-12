@@ -268,6 +268,15 @@ export async function assignStaffToBooking(bookingId: number, staffId: number | 
   return apiFetch<any>(`/bookings/${bookingId}/assign-staff/`, { method: 'POST', body: JSON.stringify({ staff_id: staffId || 0 }) })
 }
 
+// --- Booking Notes ---
+export async function updateBookingNotes(bookingId: number, notes: string) {
+  return apiFetch<any>(`/bookings/${bookingId}/update-notes/`, { method: 'POST', body: JSON.stringify({ notes }) })
+}
+
+export async function updateClientNotes(bookingId: number, notes: string) {
+  return apiFetch<any>(`/bookings/${bookingId}/update-client-notes/`, { method: 'POST', body: JSON.stringify({ notes }) })
+}
+
 // --- Staff Blocks (unavailability) ---
 export async function getStaffBlocks(params?: { staff_id?: number; date_from?: string }) {
   const qs = new URLSearchParams()
