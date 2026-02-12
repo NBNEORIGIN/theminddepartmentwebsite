@@ -311,23 +311,30 @@ def accidents_create(request):
         parts = d['time'].split(':')
         time_val = dt_time(int(parts[0]), int(parts[1]))
 
-    a = AccidentReport.objects.create(
-        date=d.get('date'),
-        time=time_val,
-        location=d.get('location', ''),
-        person_involved=d.get('person_involved', ''),
-        person_role=d.get('person_role', ''),
-        description=d.get('description', ''),
-        severity=d.get('severity', 'MINOR'),
-        riddor_reportable=d.get('riddor_reportable', False),
-        hse_reference=d.get('hse_reference', ''),
-        follow_up_required=d.get('follow_up_required', False),
-        reported_by=d.get('reported_by', ''),
-    )
-    if request.FILES.get('document'):
-        a.document = request.FILES['document']
-        a.save()
-    return Response(_serialize_accident(a), status=status.HTTP_201_CREATED)
+    try:
+        a = AccidentReport.objects.create(
+            date=d.get('date'),
+            time=time_val,
+            location=d.get('location', ''),
+            person_involved=d.get('person_involved', ''),
+            person_role=d.get('person_role', ''),
+            description=d.get('description', ''),
+            severity=d.get('severity', 'MINOR'),
+            riddor_reportable=d.get('riddor_reportable', False),
+            hse_reference=d.get('hse_reference', ''),
+            follow_up_required=d.get('follow_up_required', False),
+            reported_by=d.get('reported_by', ''),
+        )
+        if request.FILES.get('document'):
+            a.document = request.FILES['document']
+            a.save()
+        return Response(_serialize_accident(a), status=status.HTTP_201_CREATED)
+    except Exception as e:
+        import traceback
+        return Response({
+            'error': str(e),
+            'traceback': traceback.format_exc(),
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['PATCH'])
