@@ -32,6 +32,33 @@ class Service(models.Model):
     peak_time_multiplier = models.FloatField(default=1.0)
     off_peak_discount_allowed = models.BooleanField(default=True)
     no_show_adjustment_enabled = models.BooleanField(default=True)
+    # Service Intelligence Layer (Phase 1)
+    avg_booking_value = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_revenue = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_bookings = models.IntegerField(default=0)
+    no_show_rate = models.FloatField(default=0, help_text='Percentage 0-100')
+    avg_risk_score = models.FloatField(default=0)
+    peak_utilisation_rate = models.FloatField(default=0, help_text='Percentage 0-100')
+    off_peak_utilisation_rate = models.FloatField(default=0, help_text='Percentage 0-100')
+    recommended_base_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    recommended_deposit_percent = models.FloatField(null=True, blank=True)
+    recommended_payment_type = models.CharField(max_length=30, blank=True, default='')
+    price_elasticity_index = models.FloatField(default=0, help_text='0-100 sensitivity score')
+    recommendation_reason = models.TextField(blank=True, default='')
+    recommendation_confidence = models.FloatField(default=0, help_text='0-100 confidence')
+    recommendation_snapshot = models.JSONField(null=True, blank=True)
+    last_optimised_at = models.DateTimeField(null=True, blank=True)
+    auto_optimise_enabled = models.BooleanField(default=False)
+    # Smart deposit strategy
+    DEPOSIT_STRATEGY_CHOICES = [
+        ('fixed', 'Fixed'),
+        ('percentage', 'Percentage'),
+        ('dynamic', 'Dynamic (AI Assisted)'),
+    ]
+    deposit_strategy = models.CharField(max_length=20, choices=DEPOSIT_STRATEGY_CHOICES, default='fixed')
+    # Off-peak smart pricing
+    smart_pricing_enabled = models.BooleanField(default=False)
+    off_peak_discount_percent = models.FloatField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -50,6 +77,38 @@ class Service(models.Model):
         if self.deposit_percentage > 0:
             return int(self.price_pence * self.deposit_percentage / 100)
         return self.deposit_pence
+
+    @property
+    def risk_indicator(self):
+        """Return visual risk indicator for service table."""
+        if self.no_show_rate > 15:
+            return 'high_no_show'
+        if self.demand_index > 80 and self.peak_utilisation_rate > 80:
+            return 'high_demand'
+        if self.no_show_rate > 8 or self.avg_risk_score > 50:
+            return 'moderate_risk'
+        return 'stable'
+
+
+class ServiceOptimisationLog(models.Model):
+    """Phase 6 + 9 — Commercial override and R&D logging."""
+    service = models.ForeignKey('Service', on_delete=models.CASCADE, related_name='optimisation_logs')
+    previous_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    new_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    previous_deposit = models.IntegerField(null=True, blank=True)
+    new_deposit = models.IntegerField(null=True, blank=True)
+    reason = models.TextField(blank=True, default='')
+    ai_recommended = models.BooleanField(default=False)
+    owner_override = models.BooleanField(default=False)
+    input_metrics = models.JSONField(null=True, blank=True)
+    output_recommendation = models.JSONField(null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"OptLog #{self.id} — {self.service.name} @ {self.timestamp}"
 
 
 class Staff(models.Model):

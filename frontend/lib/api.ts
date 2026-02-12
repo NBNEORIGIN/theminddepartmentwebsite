@@ -206,6 +206,22 @@ export async function assignStaffToService(serviceId: number, staffIds: number[]
   return apiFetch<any>(`/services/${serviceId}/assign-staff/`, { method: 'POST', body: JSON.stringify({ staff_ids: staffIds }) })
 }
 
+export async function applyServiceRecommendation(serviceId: number) {
+  return apiFetch<any>(`/services/${serviceId}/apply-recommendation/`, { method: 'POST' })
+}
+
+export async function logServiceOverride(serviceId: number, data: { previous_price?: number; new_price?: number; previous_deposit?: number; new_deposit?: number; reason?: string }) {
+  return apiFetch<any>(`/services/${serviceId}/log-override/`, { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function recalculateServiceIntelligence() {
+  return apiFetch<any>('/services/recalculate-intelligence/', { method: 'POST' })
+}
+
+export async function getServiceOptimisationLogs(serviceId: number) {
+  return apiFetch<any[]>(`/services/${serviceId}/optimisation-logs/`)
+}
+
 export function getSlots(params?: { service_id?: number; date_from?: string; date_to?: string }) {
   const qs = new URLSearchParams()
   if (params?.service_id) qs.set('service_id', String(params.service_id))

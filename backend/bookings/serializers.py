@@ -6,6 +6,7 @@ class ServiceSerializer(serializers.ModelSerializer):
     price_pence = serializers.IntegerField(read_only=True)
     is_active = serializers.BooleanField(source='active', required=False)
     staff_ids = serializers.SerializerMethodField()
+    risk_indicator = serializers.CharField(read_only=True)
     price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=0)
 
     class Meta:
@@ -13,7 +14,24 @@ class ServiceSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description', 'category', 'duration_minutes', 'price',
                   'price_pence', 'payment_type', 'deposit_pence', 'deposit_percentage',
                   'colour', 'sort_order', 'active', 'is_active', 'staff_ids',
+                  'demand_index', 'peak_time_multiplier', 'off_peak_discount_allowed',
+                  'avg_booking_value', 'total_revenue', 'total_bookings',
+                  'no_show_rate', 'avg_risk_score', 'peak_utilisation_rate',
+                  'off_peak_utilisation_rate', 'recommended_base_price',
+                  'recommended_deposit_percent', 'recommended_payment_type',
+                  'price_elasticity_index', 'recommendation_reason',
+                  'recommendation_confidence', 'last_optimised_at',
+                  'auto_optimise_enabled', 'deposit_strategy',
+                  'smart_pricing_enabled', 'off_peak_discount_percent',
+                  'risk_indicator',
                   'created_at', 'updated_at']
+        read_only_fields = ['avg_booking_value', 'total_revenue', 'total_bookings',
+                           'no_show_rate', 'avg_risk_score', 'peak_utilisation_rate',
+                           'off_peak_utilisation_rate', 'recommended_base_price',
+                           'recommended_deposit_percent', 'recommended_payment_type',
+                           'price_elasticity_index', 'recommendation_reason',
+                           'recommendation_confidence', 'last_optimised_at',
+                           'risk_indicator']
 
     def get_staff_ids(self, obj):
         return list(obj.staff_members.values_list('id', flat=True))

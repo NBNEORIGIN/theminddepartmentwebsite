@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .models import Service, Staff, Client, Booking, Session, StaffBlock
+from .models import Service, Staff, Client, Booking, Session, StaffBlock, ServiceOptimisationLog
 from .serializers import ServiceSerializer, StaffSerializer, ClientSerializer, BookingSerializer, SessionSerializer
 from .utils import generate_time_slots, get_available_dates
 
@@ -49,6 +49,104 @@ class ServiceViewSet(viewsets.ModelViewSet):
         staff_ids = request.data.get('staff_ids', [])
         service.staff_members.set(Staff.objects.filter(id__in=staff_ids))
         return Response(ServiceSerializer(service).data)
+
+    @action(detail=True, methods=['get'], url_path='optimisation-logs')
+    def optimisation_logs(self, request, pk=None):
+        """GET /api/services/<id>/optimisation-logs/ — R&D audit trail"""
+        service = self.get_object()
+        logs = service.optimisation_logs.all()[:50]
+        return Response([{
+            'id': l.id,
+            'previous_price': float(l.previous_price) if l.previous_price else None,
+            'new_price': float(l.new_price) if l.new_price else None,
+            'previous_deposit': l.previous_deposit,
+            'new_deposit': l.new_deposit,
+            'reason': l.reason,
+            'ai_recommended': l.ai_recommended,
+            'owner_override': l.owner_override,
+            'input_metrics': l.input_metrics,
+            'output_recommendation': l.output_recommendation,
+            'timestamp': l.timestamp.isoformat(),
+        } for l in logs])
+
+    @action(detail=True, methods=['post'], url_path='apply-recommendation')
+    def apply_recommendation(self, request, pk=None):
+        """POST /api/services/<id>/apply-recommendation/ — Owner approves AI suggestion"""
+        service = self.get_object()
+        if not service.recommended_base_price and not service.recommended_deposit_percent:
+            return Response({'error': 'No recommendation available'}, status=status.HTTP_400_BAD_REQUEST)
+
+        prev_price = service.price
+        prev_deposit = service.deposit_percentage or service.deposit_pence
+
+        if service.recommended_base_price:
+            service.price = service.recommended_base_price
+        if service.recommended_deposit_percent:
+            service.deposit_percentage = int(service.recommended_deposit_percent)
+            service.deposit_pence = 0
+        if service.recommended_payment_type:
+            service.payment_type = service.recommended_payment_type
+        service.save()
+
+        ServiceOptimisationLog.objects.create(
+            service=service,
+            previous_price=prev_price,
+            new_price=service.price,
+            previous_deposit=prev_deposit,
+            new_deposit=service.deposit_percentage,
+            reason=f'Owner approved AI recommendation: {service.recommendation_reason}',
+            ai_recommended=True,
+            owner_override=False,
+            input_metrics=service.recommendation_snapshot,
+            output_recommendation={
+                'applied_price': float(service.price),
+                'applied_deposit': service.deposit_percentage,
+                'applied_payment_type': service.payment_type,
+            },
+        )
+        return Response(ServiceSerializer(service).data)
+
+    @action(detail=True, methods=['post'], url_path='log-override')
+    def log_override(self, request, pk=None):
+        """POST /api/services/<id>/log-override/ — Log a manual price/deposit change"""
+        service = self.get_object()
+        ServiceOptimisationLog.objects.create(
+            service=service,
+            previous_price=request.data.get('previous_price'),
+            new_price=request.data.get('new_price'),
+            previous_deposit=request.data.get('previous_deposit'),
+            new_deposit=request.data.get('new_deposit'),
+            reason=request.data.get('reason', 'Manual owner override'),
+            ai_recommended=False,
+            owner_override=True,
+        )
+        return Response({'status': 'logged'})
+
+    @action(detail=False, methods=['post'], url_path='recalculate-intelligence')
+    def recalculate_intelligence(self, request):
+        """POST /api/services/recalculate-intelligence/ — Trigger intelligence recalc"""
+        from django.core.management import call_command
+        import io
+        out = io.StringIO()
+        call_command('update_service_intelligence', stdout=out)
+        return Response({'status': 'ok', 'message': out.getvalue().strip()})
+
+    @action(detail=False, methods=['get'], url_path='optimisation-csv')
+    def optimisation_csv(self, request):
+        """GET /api/services/optimisation-csv/ — Export R&D audit trail as CSV"""
+        import csv
+        from django.http import HttpResponse
+        logs = ServiceOptimisationLog.objects.select_related('service').all()[:500]
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="service_optimisation_log.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['ID', 'Service', 'Previous Price', 'New Price', 'Previous Deposit',
+                        'New Deposit', 'Reason', 'AI Recommended', 'Owner Override', 'Timestamp'])
+        for l in logs:
+            writer.writerow([l.id, l.service.name, l.previous_price, l.new_price,
+                           l.previous_deposit, l.new_deposit, l.reason,
+                           l.ai_recommended, l.owner_override, l.timestamp.isoformat()])
+        return response
 
 
 class StaffViewSet(viewsets.ModelViewSet):
