@@ -340,16 +340,18 @@ class StaffBlockViewSet(viewsets.ModelViewSet):
         return qs
 
     def _serialize(self, block):
+        d = block.date
+        date_str = d.isoformat() if hasattr(d, 'isoformat') else str(d)
         return {
             'id': block.id,
             'staff': block.staff_id,
             'staff_name': block.staff.name,
-            'date': block.date.isoformat(),
+            'date': date_str,
             'start_time': block.start_time.strftime('%H:%M') if block.start_time else None,
             'end_time': block.end_time.strftime('%H:%M') if block.end_time else None,
             'reason': block.reason,
             'all_day': block.all_day,
-            'created_at': block.created_at.isoformat(),
+            'created_at': block.created_at.isoformat() if hasattr(block.created_at, 'isoformat') else str(block.created_at),
         }
 
     def list(self, request):
@@ -371,7 +373,7 @@ class StaffBlockViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
 
         try:
-            from datetime import time as dt_time
+            from datetime import time as dt_time, date as dt_date
             all_day = d.get('all_day', False)
             if isinstance(all_day, str):
                 all_day = all_day.lower() in ('true', '1', 'yes')
@@ -382,14 +384,21 @@ class StaffBlockViewSet(viewsets.ModelViewSet):
                 start_t = self._parse_time(d.get('start_time', '09:00'))
                 end_t = self._parse_time(d.get('end_time', '17:00'))
 
+            # Parse date string to date object
+            date_str = d.get('date', '')
+            parts = date_str.split('-')
+            block_date = dt_date(int(parts[0]), int(parts[1]), int(parts[2]))
+
             block = StaffBlock.objects.create(
                 staff=staff,
-                date=d.get('date'),
+                date=block_date,
                 start_time=start_t,
                 end_time=end_t,
                 reason=d.get('reason', ''),
                 all_day=all_day,
             )
+            block.refresh_from_db()
+            block.staff = staff  # re-attach for serialization
             return Response(self._serialize(block), status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({'error': f'Failed to create block: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
