@@ -446,6 +446,175 @@ export async function deleteWorkingHours(id: number) {
   return apiFetch<any>(`/staff/working-hours/${id}/delete/`, { method: 'DELETE' })
 }
 
+// --- Availability Engine (WorkingPatterns, Overrides, Leave, Blocks) ---
+export async function getWorkingPatterns(params?: { staff?: number; active?: boolean }) {
+  const qs = new URLSearchParams()
+  if (params?.staff) qs.set('staff', String(params.staff))
+  if (params?.active) qs.set('active', '1')
+  const q = qs.toString()
+  return apiFetch<any[]>(`/working-patterns/${q ? '?' + q : ''}`)
+}
+
+export async function createWorkingPattern(data: any) {
+  return apiFetch<any>('/working-patterns/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function updateWorkingPattern(id: number, data: any) {
+  return apiFetch<any>(`/working-patterns/${id}/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function deleteWorkingPattern(id: number) {
+  return apiFetch<any>(`/working-patterns/${id}/`, { method: 'DELETE' })
+}
+
+export async function copyWorkingPattern(id: number, targetStaffId: number, name?: string) {
+  return apiFetch<any>(`/working-patterns/${id}/copy-to/`, {
+    method: 'POST', body: JSON.stringify({ staff_member: targetStaffId, name }),
+  })
+}
+
+export async function duplicateWorkingPattern(id: number, data?: { name?: string; effective_from?: string; deactivate_source?: boolean }) {
+  return apiFetch<any>(`/working-patterns/${id}/duplicate/`, { method: 'POST', body: JSON.stringify(data || {}) })
+}
+
+export async function getWorkingPatternRules(patternId: number) {
+  return apiFetch<any[]>(`/working-pattern-rules/?pattern=${patternId}`)
+}
+
+export async function createWorkingPatternRule(data: any) {
+  return apiFetch<any>('/working-pattern-rules/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function updateWorkingPatternRule(id: number, data: any) {
+  return apiFetch<any>(`/working-pattern-rules/${id}/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function deleteWorkingPatternRule(id: number) {
+  return apiFetch<any>(`/working-pattern-rules/${id}/`, { method: 'DELETE' })
+}
+
+export async function getAvailabilityOverrides(params?: { staff?: number; date_from?: string; date_to?: string }) {
+  const qs = new URLSearchParams()
+  if (params?.staff) qs.set('staff', String(params.staff))
+  if (params?.date_from) qs.set('date_from', params.date_from)
+  if (params?.date_to) qs.set('date_to', params.date_to)
+  const q = qs.toString()
+  return apiFetch<any[]>(`/availability-overrides/${q ? '?' + q : ''}`)
+}
+
+export async function createAvailabilityOverride(data: any) {
+  return apiFetch<any>('/availability-overrides/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function updateAvailabilityOverride(id: number, data: any) {
+  return apiFetch<any>(`/availability-overrides/${id}/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function deleteAvailabilityOverride(id: number) {
+  return apiFetch<any>(`/availability-overrides/${id}/`, { method: 'DELETE' })
+}
+
+export async function getLeaveRequestsAvail(params?: { staff?: number; status?: string }) {
+  const qs = new URLSearchParams()
+  if (params?.staff) qs.set('staff', String(params.staff))
+  if (params?.status) qs.set('status', params.status)
+  const q = qs.toString()
+  return apiFetch<any[]>(`/leave-requests/${q ? '?' + q : ''}`)
+}
+
+export async function createLeaveRequestAvail(data: any) {
+  return apiFetch<any>('/leave-requests/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function approveLeaveRequest(id: number) {
+  return apiFetch<any>(`/leave-requests/${id}/approve/`, { method: 'POST' })
+}
+
+export async function rejectLeaveRequest(id: number) {
+  return apiFetch<any>(`/leave-requests/${id}/reject/`, { method: 'POST' })
+}
+
+export async function cancelLeaveRequest(id: number) {
+  return apiFetch<any>(`/leave-requests/${id}/cancel/`, { method: 'POST' })
+}
+
+export async function getBlockedTimes(params?: { staff?: number }) {
+  const qs = new URLSearchParams()
+  if (params?.staff) qs.set('staff', String(params.staff))
+  const q = qs.toString()
+  return apiFetch<any[]>(`/blocked-times/${q ? '?' + q : ''}`)
+}
+
+export async function createBlockedTime(data: any) {
+  return apiFetch<any>('/blocked-times/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function deleteBlockedTime(id: number) {
+  return apiFetch<any>(`/blocked-times/${id}/`, { method: 'DELETE' })
+}
+
+export async function getAvailabilityShifts(params?: { staff?: number; published?: boolean; date_from?: string; date_to?: string }) {
+  const qs = new URLSearchParams()
+  if (params?.staff) qs.set('staff', String(params.staff))
+  if (params?.published) qs.set('published', '1')
+  if (params?.date_from) qs.set('date_from', params.date_from)
+  if (params?.date_to) qs.set('date_to', params.date_to)
+  const q = qs.toString()
+  return apiFetch<any[]>(`/shifts/${q ? '?' + q : ''}`)
+}
+
+export async function createAvailabilityShift(data: any) {
+  return apiFetch<any>('/shifts/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function updateAvailabilityShift(id: number, data: any) {
+  return apiFetch<any>(`/shifts/${id}/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function deleteAvailabilityShift(id: number) {
+  return apiFetch<any>(`/shifts/${id}/`, { method: 'DELETE' })
+}
+
+export async function getAvailabilityTimesheets(params?: { staff?: number; status?: string; date_from?: string; date_to?: string }) {
+  const qs = new URLSearchParams()
+  if (params?.staff) qs.set('staff', String(params.staff))
+  if (params?.status) qs.set('status', params.status)
+  if (params?.date_from) qs.set('date_from', params.date_from)
+  if (params?.date_to) qs.set('date_to', params.date_to)
+  const q = qs.toString()
+  return apiFetch<any[]>(`/timesheets/${q ? '?' + q : ''}`)
+}
+
+export async function submitTimesheet(id: number) {
+  return apiFetch<any>(`/timesheets/${id}/submit/`, { method: 'POST' })
+}
+
+export async function approveTimesheet(id: number) {
+  return apiFetch<any>(`/timesheets/${id}/approve/`, { method: 'POST' })
+}
+
+export async function getStaffAvailability(staffId: number, date: string) {
+  return apiFetch<any>(`/availability/?staff=${staffId}&date=${date}`)
+}
+
+export async function getStaffFreeSlots(staffId: number, date: string, duration?: number) {
+  const dur = duration ? `&duration=${duration}` : ''
+  return apiFetch<any>(`/availability/slots/?staff=${staffId}&date=${date}${dur}`)
+}
+
+// --- Demo Availability Data ---
+export async function getDemoAvailabilityStatus() {
+  return apiFetch<any>('/demo/availability/seed/')
+}
+
+export async function seedDemoAvailability() {
+  return apiFetch<any>('/demo/availability/seed/', { method: 'POST' })
+}
+
+export async function deleteDemoAvailability() {
+  return apiFetch<any>('/demo/availability/seed/', { method: 'DELETE' })
+}
+
 // --- Timesheets ---
 export async function getTimesheets(params?: { staff_id?: number; date_from?: string; date_to?: string }) {
   const qs = new URLSearchParams()

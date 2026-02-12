@@ -26,6 +26,7 @@ from bookings.views_stripe import create_checkout_session, stripe_webhook
 from bookings.views_dashboard import dashboard_summary, backfill_sbe
 from bookings.views_reports import reports_overview, reports_daily, reports_monthly, reports_staff, reports_insights
 from bookings.views_demo import demo_seed_view, demo_status_view
+from bookings.views_demo_availability import demo_availability_seed_view
 from bookings.views_availability import (
     WorkingPatternViewSet, WorkingPatternRuleViewSet,
     AvailabilityOverrideViewSet, LeaveRequestViewSet,
@@ -84,6 +85,7 @@ urlpatterns = [
     # Demo data
     path('api/demo/seed/', demo_seed_view, name='demo-seed'),
     path('api/demo/status/', demo_status_view, name='demo-status'),
+    path('api/demo/availability/seed/', demo_availability_seed_view, name='demo-availability-seed'),
     # Availability engine
     path('api/availability/', staff_availability_view, name='staff-availability'),
     path('api/availability/slots/', staff_free_slots_view, name='staff-free-slots'),
