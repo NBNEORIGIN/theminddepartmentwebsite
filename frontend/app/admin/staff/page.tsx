@@ -121,7 +121,7 @@ export default function AdminStaffPage() {
   }
 
   const handleDelete = async (s: any) => {
-    if (!confirm(`Deactivate ${s.display_name}? They will no longer be able to log in.`)) return
+    if (!confirm(`Deactivate ${s.display_name || s.name}? They will no longer be able to log in.`)) return
     const res = await deleteStaff(s.id)
     if (res.error) { alert(res.error); return }
     loadData()
@@ -316,14 +316,14 @@ export default function AdminStaffPage() {
               <tbody>
                 {staff.map((s: any) => (
                   <tr key={s.id}>
-                    <td style={{ fontWeight: 600 }}>{s.display_name}</td>
-                    <td>{s.role}</td>
+                    <td style={{ fontWeight: 600 }}>{s.display_name || s.name}</td>
+                    <td>{s.role || '—'}</td>
                     <td>{s.email}</td>
                     <td>{s.phone || '—'}</td>
-                    <td><span className={`badge ${s.is_active ? 'badge-success' : 'badge-neutral'}`}>{s.is_active ? 'Active' : 'Inactive'}</span></td>
+                    <td><span className={`badge ${(s.is_active ?? s.active) ? 'badge-success' : 'badge-neutral'}`}>{(s.is_active ?? s.active) ? 'Active' : 'Inactive'}</span></td>
                     <td>
                       <button className="btn btn-sm" onClick={() => openEdit(s)} style={{ marginRight: 8 }}>Edit</button>
-                      {s.is_active && <button className="btn btn-sm btn-danger" onClick={() => handleDelete(s)}>Deactivate</button>}
+                      {(s.is_active ?? s.active) && <button className="btn btn-sm btn-danger" onClick={() => handleDelete(s)}>Deactivate</button>}
                     </td>
                   </tr>
                 ))}

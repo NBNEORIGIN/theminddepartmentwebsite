@@ -60,25 +60,27 @@ class StaffViewSet(viewsets.ModelViewSet):
             return Staff.objects.all()
         return Staff.objects.filter(active=True)
 
-    def _merge_name(self, request):
-        """Combine first_name + last_name into name if sent separately."""
-        data = request.data
-        if isinstance(data, dict) and ('first_name' in data or 'last_name' in data):
+    def _get_name(self, data):
+        """Extract name from first_name+last_name or name field."""
+        if 'first_name' in data or 'last_name' in data:
             first = data.get('first_name', '').strip()
             last = data.get('last_name', '').strip()
-            request.data['name'] = f'{first} {last}'.strip()
+            return f'{first} {last}'.strip()
+        return data.get('name', '').strip() or None
 
-    def create(self, request, *args, **kwargs):
-        self._merge_name(request)
-        return super().create(request, *args, **kwargs)
+    def perform_create(self, serializer):
+        name = self._get_name(self.request.data)
+        if name:
+            serializer.save(name=name)
+        else:
+            serializer.save()
 
-    def update(self, request, *args, **kwargs):
-        self._merge_name(request)
-        return super().update(request, *args, **kwargs)
-
-    def partial_update(self, request, *args, **kwargs):
-        self._merge_name(request)
-        return super().partial_update(request, *args, **kwargs)
+    def perform_update(self, serializer):
+        name = self._get_name(self.request.data)
+        if name:
+            serializer.save(name=name)
+        else:
+            serializer.save()
 
 
 class ClientViewSet(viewsets.ModelViewSet):

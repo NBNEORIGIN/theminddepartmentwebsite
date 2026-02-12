@@ -20,6 +20,7 @@ class ServiceSerializer(serializers.ModelSerializer):
 
 
 class StaffSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(required=False)
     services = ServiceSerializer(many=True, read_only=True)
     service_ids = serializers.PrimaryKeyRelatedField(
         many=True, 
