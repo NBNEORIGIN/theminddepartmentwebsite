@@ -540,6 +540,11 @@ export async function updateLeadStatus(id: number, status: string) {
   return apiFetch<any>(`/crm/leads/${id}/status/`, { method: 'POST', body: JSON.stringify({ status }) })
 }
 
+// --- Smart Dashboard ---
+export async function getDashboardSummary() {
+  return apiFetch<any>('/dashboard-summary/')
+}
+
 // --- Analytics ---
 export async function getAnalyticsDashboard() {
   return apiFetch<any>('/analytics/dashboard/')
