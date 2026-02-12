@@ -10,6 +10,15 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 
 
+def _get_role(user):
+    """Determine role from Django user flags."""
+    if user.is_superuser:
+        return 'owner'
+    elif user.is_staff:
+        return 'manager'
+    return 'staff'
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_view(request):
@@ -24,15 +33,13 @@ def login_view(request):
     if user is None:
         return Response({'detail': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
-    refresh = RefreshToken.for_user(user)
+    role = _get_role(user)
 
-    # Determine role from Django groups or superuser/staff flags
-    if user.is_superuser:
-        role = 'owner'
-    elif user.is_staff:
-        role = 'manager'
-    else:
-        role = 'staff'
+    refresh = RefreshToken.for_user(user)
+    # Embed role in JWT so the frontend middleware can read it
+    refresh['role'] = role
+    refresh['name'] = f'{user.first_name} {user.last_name}'.strip() or user.username
+    refresh['email'] = user.email
 
     return Response({
         'access': str(refresh.access_token),
@@ -56,12 +63,7 @@ def login_view(request):
 def me_view(request):
     """Return current user info."""
     user = request.user
-    if user.is_superuser:
-        role = 'owner'
-    elif user.is_staff:
-        role = 'manager'
-    else:
-        role = 'staff'
+    role = _get_role(user)
 
     return Response({
         'id': user.id,
