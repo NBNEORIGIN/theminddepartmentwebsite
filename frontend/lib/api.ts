@@ -448,6 +448,40 @@ export async function getRams() {
   return apiFetch<any[]>('/compliance/rams/')
 }
 
+// --- Intake / Disclaimer ---
+export async function getIntakeProfiles() {
+  return apiFetch<any[]>('/intake-profiles/')
+}
+
+export async function getIntakeStatus(email: string) {
+  return apiFetch<any>(`/intake-profiles/status/?email=${encodeURIComponent(email)}`)
+}
+
+export async function expireIntake(id: number) {
+  return apiFetch<any>(`/intake-profiles/${id}/expire/`, { method: 'POST' })
+}
+
+export async function getDisclaimers() {
+  return apiFetch<any[]>('/intake-disclaimer/')
+}
+
+export async function getActiveDisclaimer() {
+  return apiFetch<any>('/intake-disclaimer/active/')
+}
+
+export async function createDisclaimer(data: { version: string; content: string; active: boolean }) {
+  return apiFetch<any>('/intake-disclaimer/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function updateDisclaimer(id: number, data: Record<string, any>) {
+  return apiFetch<any>(`/intake-disclaimer/${id}/`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+// --- Clients ---
+export async function getClients() {
+  return apiFetch<any[]>('/clients/')
+}
+
 // --- Documents ---
 export async function getDocuments() {
   return apiFetch<any[]>('/documents/')

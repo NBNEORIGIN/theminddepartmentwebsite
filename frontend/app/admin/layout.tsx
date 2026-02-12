@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: '/admin/bookings', label: 'Bookings', icon: '📅', module: 'bookings' },
   { href: '/admin/reports', label: 'Reports', icon: '💰', module: 'bookings' },
   { href: '/admin/services', label: 'Services', icon: '💇', module: 'bookings' },
+  { href: '/admin/disclaimers', label: 'Intake & Disclaimers', icon: '📝', module: 'bookings' },
   { href: '/admin/staff', label: 'Staff', icon: '👥', module: 'staff' },
   { href: '/admin/schedule', label: 'Timesheets', icon: '🕐', module: 'staff' },
   { href: '/admin/clients', label: 'CRM', icon: '📋', module: 'crm' },
