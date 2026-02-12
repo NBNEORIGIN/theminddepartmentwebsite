@@ -73,7 +73,7 @@ export default function AdminStaffPage() {
   }
 
   const openEdit = (s: any) => {
-    const nameParts = (s.display_name || '').split(' ')
+    const nameParts = (s.display_name || s.name || '').split(' ')
     setForm({
       first_name: nameParts[0] || '',
       last_name: nameParts.slice(1).join(' ') || '',

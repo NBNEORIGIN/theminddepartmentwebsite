@@ -52,8 +52,33 @@ class ServiceViewSet(viewsets.ModelViewSet):
 
 
 class StaffViewSet(viewsets.ModelViewSet):
-    queryset = Staff.objects.filter(active=True)
     serializer_class = StaffSerializer
+
+    def get_queryset(self):
+        show_all = self.request.query_params.get('all', '')
+        if show_all == '1' or self.action in ('update', 'partial_update', 'destroy', 'retrieve'):
+            return Staff.objects.all()
+        return Staff.objects.filter(active=True)
+
+    def _merge_name(self, request):
+        """Combine first_name + last_name into name if sent separately."""
+        data = request.data
+        if isinstance(data, dict) and ('first_name' in data or 'last_name' in data):
+            first = data.get('first_name', '').strip()
+            last = data.get('last_name', '').strip()
+            request.data['name'] = f'{first} {last}'.strip()
+
+    def create(self, request, *args, **kwargs):
+        self._merge_name(request)
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        self._merge_name(request)
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        self._merge_name(request)
+        return super().partial_update(request, *args, **kwargs)
 
 
 class ClientViewSet(viewsets.ModelViewSet):
