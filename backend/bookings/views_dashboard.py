@@ -12,6 +12,24 @@ from rest_framework.response import Response
 from .models import Booking, Client, Service
 
 
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def backfill_sbe(request):
+    """POST /api/backfill-sbe/ — Trigger SBE backfill for unscored bookings"""
+    from .smart_engine import update_reliability_score, calculate_booking_risk, generate_booking_recommendation
+    bookings = Booking.objects.filter(risk_score__isnull=True).select_related('client', 'service')
+    results = []
+    for b in bookings:
+        try:
+            update_reliability_score(b.client)
+            calculate_booking_risk(b)
+            generate_booking_recommendation(b)
+            results.append({'id': b.id, 'status': 'ok', 'risk': b.risk_score, 'level': b.risk_level})
+        except Exception as e:
+            results.append({'id': b.id, 'status': 'error', 'error': f'{type(e).__name__}: {e}'})
+    return Response({'backfilled': len([r for r in results if r['status'] == 'ok']), 'results': results})
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def dashboard_summary(request):

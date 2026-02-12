@@ -23,7 +23,7 @@ from bookings.views_schedule import BusinessHoursViewSet, StaffScheduleViewSet, 
 from bookings.views_intake import IntakeProfileViewSet, IntakeWellbeingDisclaimerViewSet
 from bookings.views_payment import ClassPackageViewSet, ClientCreditViewSet, PaymentIntegrationViewSet
 from bookings.views_stripe import create_checkout_session, stripe_webhook
-from bookings.views_dashboard import dashboard_summary
+from bookings.views_dashboard import dashboard_summary, backfill_sbe
 from core.auth_views import login_view, me_view, set_password_view
 
 router = DefaultRouter()
@@ -59,5 +59,6 @@ urlpatterns = [
     path('api/compliance/', include('compliance.urls')),
     path('api/crm/', include('crm.urls')),
     path('api/dashboard-summary/', dashboard_summary, name='dashboard-summary'),
+    path('api/backfill-sbe/', backfill_sbe, name='backfill-sbe'),
     path('', include('core.urls')),
 ]
