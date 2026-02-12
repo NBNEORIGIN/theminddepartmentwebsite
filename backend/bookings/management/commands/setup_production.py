@@ -15,6 +15,19 @@ class Command(BaseCommand):
         else:
             self.stdout.write('✓ Superuser already exists')
 
+        # Create demo users matching frontend login page
+        if not User.objects.filter(username='owner').exists():
+            User.objects.create_superuser('owner', 'owner@demo.local', 'admin123')
+            self.stdout.write(self.style.SUCCESS('✓ Demo owner created'))
+        if not User.objects.filter(username='manager').exists():
+            u = User.objects.create_user('manager', 'manager@demo.local', 'admin123')
+            u.is_staff = True
+            u.save()
+            self.stdout.write(self.style.SUCCESS('✓ Demo manager created'))
+        if not User.objects.filter(username='staff1').exists():
+            User.objects.create_user('staff1', 'staff1@demo.local', 'admin123')
+            self.stdout.write(self.style.SUCCESS('✓ Demo staff1 created'))
+
         # Create Service
         service, created = Service.objects.get_or_create(
             name='Mindfulness Session',

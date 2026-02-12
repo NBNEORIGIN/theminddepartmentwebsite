@@ -7,5 +7,8 @@ python manage.py migrate --noinput
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
+echo "Running production setup (users, services, disclaimer)..."
+python manage.py setup_production
+
 echo "Starting Gunicorn..."
 exec gunicorn booking_platform.wsgi:application --bind 0.0.0.0:$PORT --timeout 120

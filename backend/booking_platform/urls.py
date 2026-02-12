@@ -23,6 +23,7 @@ from bookings.views_schedule import BusinessHoursViewSet, StaffScheduleViewSet, 
 from bookings.views_intake import IntakeProfileViewSet, IntakeWellbeingDisclaimerViewSet
 from bookings.views_payment import ClassPackageViewSet, ClientCreditViewSet, PaymentIntegrationViewSet
 from bookings.views_stripe import create_checkout_session, stripe_webhook
+from core.auth_views import login_view, me_view, set_password_view
 
 router = DefaultRouter()
 router.register(r'services', ServiceViewSet)
@@ -41,6 +42,14 @@ router.register(r'payment', PaymentIntegrationViewSet, basename='payment')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    # JWT Auth
+    path('api/auth/login/', login_view, name='auth-login'),
+    path('api/auth/me/', me_view, name='auth-me'),
+    path('api/auth/me/set-password/', set_password_view, name='auth-set-password'),
+    # Tenant/branding alias (frontend expects /api/tenant/branding/)
+    path('api/tenant/branding/', include('core.api_urls_branding')),
+    path('api/tenant/', include('core.api_urls_tenant')),
+    # DRF router
     path('api/', include(router.urls)),
     path('api/', include('core.api_urls')),
     path('api/checkout/create/', create_checkout_session, name='checkout-create'),
