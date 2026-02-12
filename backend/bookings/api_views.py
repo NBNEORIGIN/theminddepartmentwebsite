@@ -7,8 +7,37 @@ from .utils import generate_time_slots, get_available_dates
 
 
 class ServiceViewSet(viewsets.ModelViewSet):
-    queryset = Service.objects.filter(active=True)
     serializer_class = ServiceSerializer
+
+    def get_queryset(self):
+        # Admin sees all services; public booking page sees only active
+        show_all = self.request.query_params.get('all', '')
+        if show_all == '1' or self.action in ('update', 'partial_update', 'destroy', 'retrieve'):
+            return Service.objects.all()
+        return Service.objects.filter(active=True)
+
+    def perform_create(self, serializer):
+        # Support price_pence from frontend (convert to pounds)
+        price_pence = self.request.data.get('price_pence')
+        if price_pence is not None:
+            serializer.save(price=int(price_pence) / 100)
+        else:
+            serializer.save()
+
+    def perform_update(self, serializer):
+        price_pence = self.request.data.get('price_pence')
+        if price_pence is not None:
+            serializer.save(price=int(price_pence) / 100)
+        else:
+            serializer.save()
+
+    @action(detail=True, methods=['post'], url_path='assign-staff')
+    def assign_staff(self, request, pk=None):
+        """POST /api/services/<id>/assign-staff/ {staff_ids: [1,2,3]}"""
+        service = self.get_object()
+        staff_ids = request.data.get('staff_ids', [])
+        service.staff_members.set(Staff.objects.filter(id__in=staff_ids))
+        return Response(ServiceSerializer(service).data)
 
 
 class StaffViewSet(viewsets.ModelViewSet):

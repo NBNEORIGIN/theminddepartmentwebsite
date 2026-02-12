@@ -10,19 +10,41 @@ from .models_intake import IntakeProfile, IntakeWellbeingDisclaimer
 from .models_payment import ClassPackage, ClientCredit, PaymentTransaction
 
 class Service(models.Model):
+    PAYMENT_TYPE_CHOICES = [
+        ('full', 'Full Payment'),
+        ('deposit', 'Deposit Required'),
+        ('free', 'Free / No Payment'),
+    ]
+
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
+    category = models.CharField(max_length=100, blank=True, default='', help_text='e.g. Mindfulness, Group, Corporate')
     duration_minutes = models.IntegerField(validators=[MinValueValidator(1)])
     price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    payment_type = models.CharField(max_length=20, choices=PAYMENT_TYPE_CHOICES, default='full')
+    deposit_pence = models.IntegerField(default=0, help_text='Fixed deposit amount in pence')
+    deposit_percentage = models.IntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(100)], help_text='Deposit as percentage of price')
+    colour = models.CharField(max_length=7, blank=True, default='', help_text='Hex colour for calendar display')
+    sort_order = models.IntegerField(default=0)
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['name']
+        ordering = ['sort_order', 'name']
 
     def __str__(self):
-        return f"{self.name} ({self.duration_minutes}min - ${self.price})"
+        return f"{self.name} ({self.duration_minutes}min - £{self.price})"
+
+    @property
+    def price_pence(self):
+        return int(self.price * 100)
+
+    @property
+    def effective_deposit_pence(self):
+        if self.deposit_percentage > 0:
+            return int(self.price_pence * self.deposit_percentage / 100)
+        return self.deposit_pence
 
 
 class Staff(models.Model):

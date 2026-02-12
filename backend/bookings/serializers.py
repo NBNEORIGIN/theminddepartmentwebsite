@@ -3,9 +3,19 @@ from .models import Service, Staff, Client, Booking, Session
 
 
 class ServiceSerializer(serializers.ModelSerializer):
+    price_pence = serializers.IntegerField(read_only=True)
+    is_active = serializers.BooleanField(source='active', required=False)
+    staff_ids = serializers.SerializerMethodField()
+
     class Meta:
         model = Service
-        fields = ['id', 'name', 'description', 'duration_minutes', 'price', 'active', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'description', 'category', 'duration_minutes', 'price',
+                  'price_pence', 'payment_type', 'deposit_pence', 'deposit_percentage',
+                  'colour', 'sort_order', 'active', 'is_active', 'staff_ids',
+                  'created_at', 'updated_at']
+
+    def get_staff_ids(self, obj):
+        return list(obj.staff_members.values_list('id', flat=True))
 
 
 class StaffSerializer(serializers.ModelSerializer):
