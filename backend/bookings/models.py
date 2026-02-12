@@ -48,9 +48,15 @@ class Service(models.Model):
 
 
 class Staff(models.Model):
+    ROLE_CHOICES = [
+        ('staff', 'Staff'),
+        ('manager', 'Manager'),
+        ('owner', 'Owner'),
+    ]
     name = models.CharField(max_length=200)
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=20, blank=True)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='staff')
     photo_url = models.URLField(blank=True, help_text='URL to staff member photo')
     services = models.ManyToManyField(Service, related_name='staff_members', blank=True)
     active = models.BooleanField(default=True)
