@@ -6,7 +6,7 @@ from django.utils.safestring import mark_safe
 from django.db.models import Count, Q, Sum
 import csv
 from datetime import datetime, timedelta
-from .models import Service, Staff, Client, Booking, BusinessHours, StaffSchedule, Closure, StaffLeave, Session
+from .models import Service, Staff, Client, Booking, BusinessHours, StaffSchedule, Closure, StaffLeave, Session, OptimisationLog
 from .models_intake import IntakeProfile, IntakeWellbeingDisclaimer
 from .models_payment import ClassPackage, ClientCredit, PaymentTransaction
 
@@ -33,9 +33,10 @@ class StaffAdmin(admin.ModelAdmin):
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
-    list_display = ['name', 'email', 'phone', 'total_bookings', 'total_spent', 'last_booking', 'created_at']
+    list_display = ['name', 'email', 'phone', 'total_bookings', 'total_spent', 'reliability_score', 'no_show_count', 'last_booking', 'created_at']
     search_fields = ['name', 'email', 'phone']
     list_filter = ['created_at']
+    readonly_fields = ['reliability_score', 'total_bookings', 'completed_bookings', 'cancelled_bookings', 'no_show_count', 'consecutive_no_shows', 'last_no_show_date', 'lifetime_value', 'avg_days_between_bookings']
     actions = ['export_clients_csv']
     
     def get_queryset(self, request):
@@ -93,11 +94,11 @@ class ClientAdmin(admin.ModelAdmin):
 
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
-    list_display = ['client', 'service', 'staff', 'start_time', 'end_time', 'status', 'price', 'created_at']
-    list_filter = ['status', 'start_time', 'staff', 'service']
+    list_display = ['client', 'service', 'staff', 'start_time', 'end_time', 'status', 'price', 'risk_level', 'risk_score', 'created_at']
+    list_filter = ['status', 'risk_level', 'start_time', 'staff', 'service']
     search_fields = ['client__name', 'client__email', 'notes']
     date_hierarchy = 'start_time'
-    readonly_fields = ['created_at', 'updated_at']
+    readonly_fields = ['created_at', 'updated_at', 'risk_score', 'risk_level', 'revenue_at_risk', 'recommended_payment_type', 'recommended_deposit_percent', 'recommended_price_adjustment', 'recommended_incentive', 'recommendation_reason', 'optimisation_snapshot', 'override_applied', 'override_reason']
     actions = ['export_bookings_csv', 'mark_as_completed', 'mark_as_cancelled']
     
     def price(self, obj):
@@ -259,6 +260,38 @@ class ClientCreditAdmin(admin.ModelAdmin):
         return obj.is_valid
     is_valid.boolean = True
     is_valid.short_description = 'Valid'
+
+
+@admin.register(OptimisationLog)
+class OptimisationLogAdmin(admin.ModelAdmin):
+    list_display = ['id', 'booking', 'reliability_score', 'risk_score', 'override_applied', 'timestamp']
+    list_filter = ['override_applied', 'timestamp']
+    search_fields = ['booking__client__name', 'override_reason']
+    readonly_fields = ['booking', 'input_data', 'output_recommendation', 'override_applied', 'override_reason', 'reliability_score', 'risk_score', 'timestamp']
+    date_hierarchy = 'timestamp'
+    actions = ['export_logs_csv']
+
+    def export_logs_csv(self, request, queryset):
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="optimisation_logs_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['ID', 'Booking ID', 'Client', 'Reliability Score', 'Risk Score', 'Override', 'Override Reason', 'Recommendation', 'Timestamp'])
+        for log in queryset.select_related('booking__client'):
+            client_name = log.booking.client.name if log.booking and log.booking.client else ''
+            rec = log.output_recommendation or {}
+            writer.writerow([
+                log.id,
+                log.booking_id,
+                client_name,
+                log.reliability_score,
+                log.risk_score,
+                log.override_applied,
+                log.override_reason,
+                str(rec),
+                log.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+            ])
+        return response
+    export_logs_csv.short_description = 'Export selected logs to CSV'
 
 
 @admin.register(PaymentTransaction)

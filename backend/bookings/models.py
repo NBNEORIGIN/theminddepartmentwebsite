@@ -27,6 +27,11 @@ class Service(models.Model):
     colour = models.CharField(max_length=7, blank=True, default='', help_text='Hex colour for calendar display')
     sort_order = models.IntegerField(default=0)
     active = models.BooleanField(default=True)
+    # Smart Booking Engine — demand intelligence
+    demand_index = models.FloatField(default=0, help_text='Normalised 0-100 demand score')
+    peak_time_multiplier = models.FloatField(default=1.0)
+    off_peak_discount_allowed = models.BooleanField(default=True)
+    no_show_adjustment_enabled = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -76,6 +81,16 @@ class Client(models.Model):
     email = models.EmailField()
     phone = models.CharField(max_length=20)
     notes = models.TextField(blank=True)
+    # Smart Booking Engine — reliability tracking
+    total_bookings = models.IntegerField(default=0)
+    completed_bookings = models.IntegerField(default=0)
+    cancelled_bookings = models.IntegerField(default=0)
+    no_show_count = models.IntegerField(default=0)
+    consecutive_no_shows = models.IntegerField(default=0)
+    last_no_show_date = models.DateTimeField(null=True, blank=True)
+    reliability_score = models.FloatField(default=100.0)
+    lifetime_value = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    avg_days_between_bookings = models.FloatField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -143,6 +158,19 @@ class Booking(models.Model):
         help_text='Type of payment used'
     )
     
+    # Smart Booking Engine — risk & recommendation
+    risk_score = models.FloatField(null=True, blank=True)
+    risk_level = models.CharField(max_length=10, blank=True, default='', help_text='LOW / MEDIUM / HIGH / CRITICAL')
+    revenue_at_risk = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    recommended_payment_type = models.CharField(max_length=30, blank=True, default='')
+    recommended_deposit_percent = models.FloatField(null=True, blank=True)
+    recommended_price_adjustment = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    recommended_incentive = models.CharField(max_length=200, blank=True, default='')
+    recommendation_reason = models.TextField(blank=True, default='')
+    optimisation_snapshot = models.JSONField(null=True, blank=True)
+    override_applied = models.BooleanField(default=False)
+    override_reason = models.TextField(blank=True, default='')
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -160,6 +188,25 @@ class Booking(models.Model):
         if not self.end_time:
             self.end_time = self.start_time + timezone.timedelta(minutes=self.service.duration_minutes)
         super().save(*args, **kwargs)
+
+
+class OptimisationLog(models.Model):
+    """R&D evidence log for all Smart Booking Engine decisions"""
+    booking = models.ForeignKey('Booking', on_delete=models.CASCADE, related_name='optimisation_logs', null=True, blank=True)
+    input_data = models.JSONField(null=True, blank=True)
+    output_recommendation = models.JSONField(null=True, blank=True)
+    override_applied = models.BooleanField(default=False)
+    override_reason = models.TextField(blank=True, default='')
+    reliability_score = models.FloatField(null=True, blank=True)
+    risk_score = models.FloatField(null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+        verbose_name = 'Optimisation Log'
+
+    def __str__(self):
+        return f"Log #{self.id} booking={self.booking_id} risk={self.risk_score} @ {self.timestamp}"
 
 
 class Session(models.Model):

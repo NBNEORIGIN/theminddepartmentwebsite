@@ -16,5 +16,8 @@ python manage.py seed_compliance
 echo "Syncing CRM leads from bookings..."
 python manage.py sync_crm_leads
 
+echo "Updating service demand indices..."
+python manage.py update_demand_index
+
 echo "Starting Gunicorn..."
 exec gunicorn booking_platform.wsgi:application --bind 0.0.0.0:$PORT --timeout 120

@@ -174,6 +174,14 @@ class BookingViewSet(viewsets.ModelViewSet):
                     notes=notes
                 )
                 
+                # Smart Booking Engine — run full pipeline
+                try:
+                    from .smart_engine import process_booking
+                    process_booking(booking)
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(f'[SBE] Engine error on booking {booking.id}: {e}')
+
                 # Auto-create CRM lead if not exists
                 try:
                     from crm.models import Lead
@@ -342,6 +350,7 @@ The Mind Department"""
     def cancel(self, request, pk=None):
         """POST /api/bookings/<id>/cancel/ — Cancel a booking, freeing the slot"""
         booking = self.get_object()
+        old_status = booking.status
         if booking.status in ('cancelled', 'completed'):
             return Response(
                 {'error': f'Cannot cancel a {booking.status} booking'},
@@ -350,22 +359,39 @@ The Mind Department"""
         booking.status = 'cancelled'
         booking.notes = (booking.notes or '') + f'\nCancelled by admin.'
         booking.save()
+        try:
+            from .smart_engine import on_booking_status_change
+            on_booking_status_change(booking, old_status, 'cancelled')
+        except Exception:
+            pass
         return Response(BookingSerializer(booking).data)
 
     @action(detail=True, methods=['post'], url_path='no-show')
     def no_show(self, request, pk=None):
         """POST /api/bookings/<id>/no-show/ — Mark as no-show"""
         booking = self.get_object()
+        old_status = booking.status
         booking.status = 'no_show'
         booking.save()
+        try:
+            from .smart_engine import on_booking_status_change
+            on_booking_status_change(booking, old_status, 'no_show')
+        except Exception:
+            pass
         return Response(BookingSerializer(booking).data)
 
     @action(detail=True, methods=['post'])
     def complete(self, request, pk=None):
         """POST /api/bookings/<id>/complete/ — Mark as completed"""
         booking = self.get_object()
+        old_status = booking.status
         booking.status = 'completed'
         booking.save()
+        try:
+            from .smart_engine import on_booking_status_change
+            on_booking_status_change(booking, old_status, 'completed')
+        except Exception:
+            pass
         return Response(BookingSerializer(booking).data)
 
 
