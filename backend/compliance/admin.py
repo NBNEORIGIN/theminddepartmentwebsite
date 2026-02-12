@@ -2,6 +2,7 @@ from django.contrib import admin
 from .models import (
     IncidentReport, IncidentPhoto, SignOff, RAMSDocument,
     RiskAssessment, HazardFinding, Equipment, EquipmentInspection, ComplianceCategory,
+    ComplianceItem, PeaceOfMindScore, ScoreAuditLog,
 )
 
 
@@ -108,11 +109,18 @@ class EquipmentInspectionAdmin(admin.ModelAdmin):
 
 # --- Compliance Scoring ---
 
+class ComplianceItemInline(admin.TabularInline):
+    model = ComplianceItem
+    extra = 0
+    fields = ['title', 'item_type', 'status', 'due_date', 'regulatory_ref']
+
+
 @admin.register(ComplianceCategory)
 class ComplianceCategoryAdmin(admin.ModelAdmin):
     list_display = ['name', 'current_score', 'max_score', 'percentage_display', 'order']
     list_editable = ['current_score', 'max_score', 'order']
     ordering = ['order']
+    inlines = [ComplianceItemInline]
 
     def percentage_display(self, obj):
         pct = obj.percentage
@@ -122,6 +130,77 @@ class ComplianceCategoryAdmin(admin.ModelAdmin):
             return f'{pct}% ⚠️'
         return f'{pct}% ❌'
     percentage_display.short_description = 'Score %'
+
+
+@admin.register(ComplianceItem)
+class ComplianceItemAdmin(admin.ModelAdmin):
+    list_display = ['title', 'category', 'item_type', 'status', 'weight_display', 'due_date', 'regulatory_ref']
+    list_filter = ['item_type', 'status', 'category']
+    search_fields = ['title', 'description', 'regulatory_ref']
+    list_editable = ['status']
+    actions = ['mark_compliant', 'mark_due_soon', 'mark_overdue']
+
+    def weight_display(self, obj):
+        return f'{obj.weight}x'
+    weight_display.short_description = 'Weight'
+
+    def mark_compliant(self, request, queryset):
+        from django.utils import timezone
+        queryset.update(status='COMPLIANT', completed_at=timezone.now())
+        from .models import PeaceOfMindScore
+        PeaceOfMindScore.recalculate()
+        self.message_user(request, f'{queryset.count()} item(s) marked compliant. Score recalculated.')
+    mark_compliant.short_description = 'Mark selected as Compliant'
+
+    def mark_due_soon(self, request, queryset):
+        queryset.update(status='DUE_SOON')
+        from .models import PeaceOfMindScore
+        PeaceOfMindScore.recalculate()
+        self.message_user(request, f'{queryset.count()} item(s) marked due soon. Score recalculated.')
+    mark_due_soon.short_description = 'Mark selected as Due Soon'
+
+    def mark_overdue(self, request, queryset):
+        queryset.update(status='OVERDUE')
+        from .models import PeaceOfMindScore
+        PeaceOfMindScore.recalculate()
+        self.message_user(request, f'{queryset.count()} item(s) marked overdue. Score recalculated.')
+    mark_overdue.short_description = 'Mark selected as Overdue'
+
+
+@admin.register(PeaceOfMindScore)
+class PeaceOfMindScoreAdmin(admin.ModelAdmin):
+    list_display = ['score_display', 'colour', 'interpretation', 'total_items', 'compliant_count', 'due_soon_count', 'overdue_count', 'last_calculated_at']
+    readonly_fields = ['score', 'previous_score', 'total_items', 'compliant_count', 'due_soon_count', 'overdue_count', 'legal_items', 'best_practice_items', 'last_calculated_at']
+
+    def score_display(self, obj):
+        return f'{obj.score}%'
+    score_display.short_description = 'Peace of Mind Score'
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(ScoreAuditLog)
+class ScoreAuditLogAdmin(admin.ModelAdmin):
+    list_display = ['calculated_at', 'score', 'previous_score', 'change_display', 'trigger', 'total_items', 'compliant_count', 'overdue_count']
+    list_filter = ['trigger', 'calculated_at']
+    readonly_fields = ['score', 'previous_score', 'total_items', 'compliant_count', 'due_soon_count', 'overdue_count', 'trigger', 'calculated_at']
+    date_hierarchy = 'calculated_at'
+
+    def change_display(self, obj):
+        change = obj.score - obj.previous_score
+        if change > 0:
+            return f'+{change}%'
+        elif change < 0:
+            return f'{change}%'
+        return '0%'
+    change_display.short_description = 'Change'
+
+    def has_add_permission(self, request):
+        return False
 
 
 # --- RAMS ---

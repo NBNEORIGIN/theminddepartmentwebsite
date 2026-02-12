@@ -223,6 +223,213 @@ class ComplianceCategory(models.Model):
         return round((self.current_score / self.max_score) * 100) if self.max_score > 0 else 0
 
 
+class ComplianceItem(models.Model):
+    """
+    Individual compliance item that contributes to the Peace of Mind Score.
+    Each item has a type (LEGAL or BEST_PRACTICE) and a status.
+    """
+    TYPE_CHOICES = [
+        ('LEGAL', 'Legal Requirement'),
+        ('BEST_PRACTICE', 'Best Practice'),
+    ]
+    STATUS_CHOICES = [
+        ('COMPLIANT', 'Compliant'),
+        ('DUE_SOON', 'Due Soon'),
+        ('OVERDUE', 'Overdue'),
+    ]
+
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default='')
+    category = models.ForeignKey(ComplianceCategory, on_delete=models.CASCADE, related_name='items')
+    item_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='BEST_PRACTICE', db_index=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='COMPLIANT', db_index=True)
+    due_date = models.DateField(null=True, blank=True, db_index=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    regulatory_ref = models.CharField(max_length=255, blank=True, default='', help_text='Legal/regulatory reference')
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['category', 'item_type', 'title']
+        verbose_name = 'Compliance Item'
+        verbose_name_plural = 'Compliance Items'
+
+    def __str__(self):
+        return f"[{self.get_item_type_display()}] {self.title} — {self.get_status_display()}"
+
+    @property
+    def weight(self):
+        """LEGAL items weight 2, BEST_PRACTICE weight 1"""
+        return 2 if self.item_type == 'LEGAL' else 1
+
+    @property
+    def status_factor(self):
+        """COMPLIANT=1.0, DUE_SOON=0.5, OVERDUE=0.0"""
+        if self.status == 'COMPLIANT':
+            return 1.0
+        elif self.status == 'DUE_SOON':
+            return 0.5
+        return 0.0
+
+    @property
+    def achieved_weight(self):
+        return self.weight * self.status_factor
+
+
+class PeaceOfMindScore(models.Model):
+    """
+    Cached Peace of Mind Score (0–100).
+    Single row — recalculated on item changes and daily.
+    """
+    score = models.IntegerField(default=0)
+    previous_score = models.IntegerField(default=0)
+    total_items = models.IntegerField(default=0)
+    compliant_count = models.IntegerField(default=0)
+    due_soon_count = models.IntegerField(default=0)
+    overdue_count = models.IntegerField(default=0)
+    legal_items = models.IntegerField(default=0)
+    best_practice_items = models.IntegerField(default=0)
+    last_calculated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Peace of Mind Score'
+        verbose_name_plural = 'Peace of Mind Score'
+
+    def __str__(self):
+        return f"Peace of Mind Score: {self.score}%"
+
+    @property
+    def score_change(self):
+        return self.score - self.previous_score
+
+    @property
+    def interpretation(self):
+        if self.score >= 90:
+            return "Your compliance is in strong shape."
+        elif self.score >= 70:
+            return "A few items need attention soon."
+        else:
+            return "There are overdue compliance items."
+
+    @property
+    def colour(self):
+        if self.score >= 80:
+            return 'green'
+        elif self.score >= 60:
+            return 'amber'
+        return 'red'
+
+    @classmethod
+    def recalculate(cls):
+        """
+        Core scoring algorithm:
+        Total possible weight = sum(all item weights)
+        Achieved weight = sum(weight * status_factor)
+        Score = (achieved / total) * 100, rounded to nearest int
+        """
+        from django.utils import timezone
+
+        items = ComplianceItem.objects.all()
+        total_possible = 0
+        achieved = 0
+        compliant = 0
+        due_soon = 0
+        overdue = 0
+        legal = 0
+        best_practice = 0
+
+        for item in items:
+            total_possible += item.weight
+            achieved += item.achieved_weight
+
+            if item.status == 'COMPLIANT':
+                compliant += 1
+            elif item.status == 'DUE_SOON':
+                due_soon += 1
+            else:
+                overdue += 1
+
+            if item.item_type == 'LEGAL':
+                legal += 1
+            else:
+                best_practice += 1
+
+        new_score = round((achieved / total_possible) * 100) if total_possible > 0 else 100
+
+        obj, created = cls.objects.get_or_create(pk=1, defaults={
+            'score': new_score,
+            'previous_score': 0,
+            'total_items': items.count(),
+            'compliant_count': compliant,
+            'due_soon_count': due_soon,
+            'overdue_count': overdue,
+            'legal_items': legal,
+            'best_practice_items': best_practice,
+        })
+
+        if not created:
+            obj.previous_score = obj.score
+            obj.score = new_score
+            obj.total_items = items.count()
+            obj.compliant_count = compliant
+            obj.due_soon_count = due_soon
+            obj.overdue_count = overdue
+            obj.legal_items = legal
+            obj.best_practice_items = best_practice
+            obj.save()
+
+        # Log the recalculation
+        ScoreAuditLog.objects.create(
+            score=new_score,
+            previous_score=obj.previous_score if not created else 0,
+            total_items=items.count(),
+            compliant_count=compliant,
+            due_soon_count=due_soon,
+            overdue_count=overdue,
+            trigger='auto',
+        )
+
+        # Update ComplianceCategory scores based on their items
+        for cat in ComplianceCategory.objects.all():
+            cat_items = cat.items.all()
+            cat_total = sum(i.weight for i in cat_items)
+            cat_achieved = sum(i.achieved_weight for i in cat_items)
+            cat.current_score = round((cat_achieved / cat_total) * cat.max_score) if cat_total > 0 else cat.max_score
+            cat.save()
+
+        return obj
+
+
+class ScoreAuditLog(models.Model):
+    """Audit log for every score recalculation"""
+    TRIGGER_CHOICES = [
+        ('auto', 'Automatic (item change)'),
+        ('manual', 'Manual recalculation'),
+        ('scheduled', 'Scheduled (daily)'),
+    ]
+
+    score = models.IntegerField()
+    previous_score = models.IntegerField()
+    total_items = models.IntegerField()
+    compliant_count = models.IntegerField()
+    due_soon_count = models.IntegerField()
+    overdue_count = models.IntegerField()
+    trigger = models.CharField(max_length=20, choices=TRIGGER_CHOICES, default='auto')
+    calculated_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-calculated_at']
+        verbose_name = 'Score Audit Log'
+        verbose_name_plural = 'Score Audit Logs'
+
+    def __str__(self):
+        change = self.score - self.previous_score
+        direction = f"+{change}" if change > 0 else str(change)
+        return f"{self.calculated_at.strftime('%Y-%m-%d %H:%M')} — Score: {self.score}% ({direction})"
+
+
 class RAMSDocument(models.Model):
     STATUS_CHOICES = [('DRAFT', 'Draft'), ('ACTIVE', 'Active'), ('EXPIRED', 'Expired'), ('ARCHIVED', 'Archived')]
 

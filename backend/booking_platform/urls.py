@@ -45,5 +45,6 @@ urlpatterns = [
     path('api/', include('core.api_urls')),
     path('api/checkout/create/', create_checkout_session, name='checkout-create'),
     path('api/checkout/webhook/', stripe_webhook, name='stripe-webhook'),
+    path('api/compliance/', include('compliance.urls')),
     path('', include('core.urls')),
 ]

@@ -104,6 +104,9 @@ JAZZMIN_SETTINGS = {
         "compliance.Equipment": "fas fa-tools",
         "compliance.EquipmentInspection": "fas fa-wrench",
         "compliance.ComplianceCategory": "fas fa-chart-bar",
+        "compliance.ComplianceItem": "fas fa-tasks",
+        "compliance.PeaceOfMindScore": "fas fa-heart",
+        "compliance.ScoreAuditLog": "fas fa-history",
         "compliance.RAMSDocument": "fas fa-file-alt",
     },
     # Icons that are used when one is not manually specified
