@@ -26,7 +26,7 @@ from bookings.views_stripe import create_checkout_session, stripe_webhook
 from core.auth_views import login_view, me_view, set_password_view
 
 router = DefaultRouter()
-router.register(r'services', ServiceViewSet)
+router.register(r'services', ServiceViewSet, basename='service')
 router.register(r'staff', StaffViewSet)
 router.register(r'bookings', BookingViewSet)
 router.register(r'clients', ClientViewSet)
