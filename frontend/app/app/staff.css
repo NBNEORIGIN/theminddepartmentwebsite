@@ -67,6 +67,17 @@
 .compliance-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s ease; }
 .score-circle { width: 120px; height: 120px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; border: 6px solid; }
 
+/* --- HSE Dashboard Grids --- */
+.hse-gauge-grid { display: grid; grid-template-columns: 240px 1fr; gap: 2rem; margin-bottom: 2rem; }
+.hse-stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+.hse-priority-row { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; }
+.hse-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; overflow-x: auto; }
+.hse-breakdown-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.hse-breakdown-table th, .hse-breakdown-table td { padding: 0.75rem; }
+.hse-breakdown-table th { text-align: center; font-weight: 600; }
+.hse-breakdown-table td { text-align: center; }
+.hse-breakdown-table td:first-child, .hse-breakdown-table th:first-child { text-align: left; padding-left: 1rem; }
+
 /* --- Mobile --- */
 @media (max-width: 768px) {
   .shell { grid-template-columns: 1fr; }
@@ -80,4 +91,10 @@
   .chat-input-bar { flex-shrink: 0; padding: 0.5rem 0.75rem; gap: 0.25rem; }
   .chat-input-bar input { font-size: 16px; }
   .page-header { margin-bottom: 0.5rem; }
+  .hse-gauge-grid { grid-template-columns: 1fr; }
+  .hse-stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .hse-priority-row { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+  .hse-tabs { gap: 0.25rem; }
+  .hse-breakdown-table { font-size: 0.8rem; }
+  .hse-breakdown-table th, .hse-breakdown-table td { padding: 0.5rem 0.25rem; }
 }
