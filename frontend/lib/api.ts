@@ -268,6 +268,23 @@ export async function assignStaffToBooking(bookingId: number, staffId: number | 
   return apiFetch<any>(`/bookings/${bookingId}/assign-staff/`, { method: 'POST', body: JSON.stringify({ staff_id: staffId || 0 }) })
 }
 
+// --- Staff Blocks (unavailability) ---
+export async function getStaffBlocks(params?: { staff_id?: number; date_from?: string }) {
+  const qs = new URLSearchParams()
+  if (params?.staff_id) qs.set('staff_id', String(params.staff_id))
+  if (params?.date_from) qs.set('date_from', params.date_from)
+  const q = qs.toString()
+  return apiFetch<any[]>(`/staff-blocks/${q ? '?' + q : ''}`)
+}
+
+export async function createStaffBlock(data: { staff_id: number; date: string; start_time?: string; end_time?: string; reason?: string; all_day?: boolean }) {
+  return apiFetch<any>('/staff-blocks/', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function deleteStaffBlock(id: number) {
+  return apiFetch<any>(`/staff-blocks/${id}/`, { method: 'DELETE' })
+}
+
 export async function getBookingReports(params?: { report?: string; date_from?: string; date_to?: string; staff_id?: number }) {
   const qs = new URLSearchParams()
   if (params?.report) qs.set('report', params.report)

@@ -1,21 +1,12 @@
 from datetime import datetime, timedelta
 from django.utils import timezone
-from .models import Booking, Staff, Service
+from .models import Booking, Staff, Service, StaffBlock
 
 
 def generate_time_slots(staff_id, service_id, date, business_hours_start=9, business_hours_end=17):
     """
     Generate available time slots for a given staff member, service, and date.
-    
-    Args:
-        staff_id: Staff member ID
-        service_id: Service ID
-        date: Date string in YYYY-MM-DD format
-        business_hours_start: Business opening hour (default 9am)
-        business_hours_end: Business closing hour (default 5pm)
-    
-    Returns:
-        List of available time slots with start and end times
+    Excludes slots that overlap with existing bookings or staff blocks.
     """
     try:
         staff = Staff.objects.get(id=staff_id, active=True)
@@ -37,6 +28,13 @@ def generate_time_slots(staff_id, service_id, date, business_hours_start=9, busi
         status__in=['pending', 'confirmed']
     ).order_by('start_time')
     
+    # Get staff blocks for this date
+    staff_blocks = StaffBlock.objects.filter(staff=staff, date=target_date)
+    
+    # If any block is all_day, no slots available
+    if staff_blocks.filter(all_day=True).exists():
+        return []
+    
     # Generate potential slots
     slots = []
     current_time = timezone.make_aware(
@@ -54,10 +52,18 @@ def generate_time_slots(staff_id, service_id, date, business_hours_start=9, busi
         # Check if this slot conflicts with existing bookings
         is_available = True
         for booking in existing_bookings:
-            # Check for overlap
             if (current_time < booking.end_time and slot_end > booking.start_time):
                 is_available = False
                 break
+        
+        # Check if this slot conflicts with staff blocks
+        if is_available:
+            slot_start_time = current_time.time()
+            slot_end_time = slot_end.time()
+            for block in staff_blocks:
+                if slot_start_time < block.end_time and slot_end_time > block.start_time:
+                    is_available = False
+                    break
         
         if is_available:
             slots.append({

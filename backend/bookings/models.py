@@ -264,6 +264,26 @@ class Closure(models.Model):
         return f"{self.date.strftime('%Y-%m-%d')}: {self.reason} ({self.start_time} - {self.end_time})"
 
 
+class StaffBlock(models.Model):
+    """Block out specific time slots when staff is unavailable"""
+    staff = models.ForeignKey(Staff, on_delete=models.CASCADE, related_name='blocks')
+    date = models.DateField()
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    reason = models.CharField(max_length=200, blank=True)
+    all_day = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['date', 'start_time']
+        verbose_name = 'Staff Block'
+
+    def __str__(self):
+        if self.all_day:
+            return f"{self.staff.name} - {self.date}: Blocked all day ({self.reason})"
+        return f"{self.staff.name} - {self.date}: {self.start_time} - {self.end_time} ({self.reason})"
+
+
 class StaffLeave(models.Model):
     """Individual staff member time off"""
     staff = models.ForeignKey(Staff, on_delete=models.CASCADE, related_name='leave')

@@ -18,7 +18,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from bookings.api_views import ServiceViewSet, StaffViewSet, BookingViewSet, ClientViewSet
+from bookings.api_views import ServiceViewSet, StaffViewSet, BookingViewSet, ClientViewSet, StaffBlockViewSet
 from bookings.views_schedule import BusinessHoursViewSet, StaffScheduleViewSet, ClosureViewSet, StaffLeaveViewSet
 from bookings.views_intake import IntakeProfileViewSet, IntakeWellbeingDisclaimerViewSet
 from bookings.views_payment import ClassPackageViewSet, ClientCreditViewSet, PaymentIntegrationViewSet
@@ -30,6 +30,7 @@ router.register(r'services', ServiceViewSet, basename='service')
 router.register(r'staff', StaffViewSet)
 router.register(r'bookings', BookingViewSet)
 router.register(r'clients', ClientViewSet)
+router.register(r'staff-blocks', StaffBlockViewSet, basename='staff-block')
 router.register(r'business-hours', BusinessHoursViewSet)
 router.register(r'staff-schedules', StaffScheduleViewSet)
 router.register(r'closures', ClosureViewSet)

@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .models import Service, Staff, Client, Booking, Session
+from .models import Service, Staff, Client, Booking, Session, StaffBlock
 from .serializers import ServiceSerializer, StaffSerializer, ClientSerializer, BookingSerializer, SessionSerializer
 from .utils import generate_time_slots, get_available_dates
 
@@ -292,6 +292,103 @@ The Mind Department"""
         
         dates = get_available_dates(staff_id, service_id, days_ahead)
         return Response({'available_dates': dates})
+
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        """POST /api/bookings/<id>/cancel/ — Cancel a booking, freeing the slot"""
+        booking = self.get_object()
+        if booking.status in ('cancelled', 'completed'):
+            return Response(
+                {'error': f'Cannot cancel a {booking.status} booking'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        booking.status = 'cancelled'
+        booking.notes = (booking.notes or '') + f'\nCancelled by admin.'
+        booking.save()
+        return Response(BookingSerializer(booking).data)
+
+    @action(detail=True, methods=['post'], url_path='no-show')
+    def no_show(self, request, pk=None):
+        """POST /api/bookings/<id>/no-show/ — Mark as no-show"""
+        booking = self.get_object()
+        booking.status = 'no_show'
+        booking.save()
+        return Response(BookingSerializer(booking).data)
+
+    @action(detail=True, methods=['post'])
+    def complete(self, request, pk=None):
+        """POST /api/bookings/<id>/complete/ — Mark as completed"""
+        booking = self.get_object()
+        booking.status = 'completed'
+        booking.save()
+        return Response(BookingSerializer(booking).data)
+
+
+class StaffBlockViewSet(viewsets.ModelViewSet):
+    """CRUD for staff time blocks (unavailability)"""
+    serializer_class = None  # We'll use manual serialization
+
+    def get_queryset(self):
+        qs = StaffBlock.objects.select_related('staff').all()
+        staff_id = self.request.query_params.get('staff_id')
+        if staff_id:
+            qs = qs.filter(staff_id=staff_id)
+        date_from = self.request.query_params.get('date_from')
+        if date_from:
+            qs = qs.filter(date__gte=date_from)
+        return qs
+
+    def _serialize(self, block):
+        return {
+            'id': block.id,
+            'staff': block.staff_id,
+            'staff_name': block.staff.name,
+            'date': block.date.isoformat(),
+            'start_time': block.start_time.strftime('%H:%M') if block.start_time else None,
+            'end_time': block.end_time.strftime('%H:%M') if block.end_time else None,
+            'reason': block.reason,
+            'all_day': block.all_day,
+            'created_at': block.created_at.isoformat(),
+        }
+
+    def list(self, request):
+        blocks = self.get_queryset()
+        return Response([self._serialize(b) for b in blocks])
+
+    def create(self, request):
+        d = request.data
+        try:
+            staff = Staff.objects.get(id=d.get('staff_id') or d.get('staff'))
+        except Staff.DoesNotExist:
+            return Response({'error': 'Staff not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        from datetime import time as dt_time
+        all_day = d.get('all_day', False)
+        if all_day:
+            start_t = dt_time(0, 0)
+            end_t = dt_time(23, 59)
+        else:
+            start_t = dt_time.fromisoformat(d.get('start_time', '09:00'))
+            end_t = dt_time.fromisoformat(d.get('end_time', '17:00'))
+
+        block = StaffBlock.objects.create(
+            staff=staff,
+            date=d.get('date'),
+            start_time=start_t,
+            end_time=end_t,
+            reason=d.get('reason', ''),
+            all_day=all_day,
+        )
+        return Response(self._serialize(block), status=status.HTTP_201_CREATED)
+
+    def destroy(self, request, pk=None):
+        try:
+            block = StaffBlock.objects.get(id=pk)
+        except StaffBlock.DoesNotExist:
+            return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+        block.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class SessionViewSet(viewsets.ModelViewSet):
