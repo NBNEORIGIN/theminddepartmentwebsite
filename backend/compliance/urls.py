@@ -6,6 +6,7 @@ app_name = 'compliance'
 urlpatterns = [
     # Dashboard & scoring
     path('dashboard/', views.dashboard, name='dashboard'),
+    path('dashboard-v2/', views.dashboard_v2, name='dashboard-v2'),
     path('breakdown/', views.breakdown, name='breakdown'),
     path('priorities/', views.priority_actions, name='priorities'),
     path('audit-log/', views.audit_log, name='audit-log'),

@@ -494,3 +494,119 @@ def recalculate(request):
         'previous_score': result.previous_score,
         'message': f'Score recalculated: {result.score}%',
     })
+
+
+# ========== VISUAL DASHBOARD V2 ENDPOINTS ==========
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def dashboard_v2(request):
+    """
+    GET /api/compliance/dashboard-v2/
+    Enhanced dashboard with time horizon, trend, priority scoring.
+    """
+    score_obj = PeaceOfMindScore.objects.filter(pk=1).first()
+    if not score_obj:
+        score_obj = PeaceOfMindScore.recalculate()
+
+    today = timezone.now().date()
+
+    # --- Time horizon buckets ---
+    items = list(ComplianceItem.objects.select_related('category').all())
+
+    horizon = {'next_7': [], 'next_30': [], 'next_90': [], 'overdue': []}
+    for item in items:
+        due = item.next_due_date
+        if not due:
+            continue
+        if due < today:
+            horizon['overdue'].append(_serialize_item(item))
+        elif due <= today + timedelta(days=7):
+            horizon['next_7'].append(_serialize_item(item))
+        elif due <= today + timedelta(days=30):
+            horizon['next_30'].append(_serialize_item(item))
+        elif due <= today + timedelta(days=90):
+            horizon['next_90'].append(_serialize_item(item))
+
+    # --- Priority scoring ---
+    priority_items = []
+    for item in items:
+        p_score = 0
+        due = item.next_due_date
+        if item.item_type == 'LEGAL' and item.status == 'OVERDUE':
+            p_score += 50
+        elif item.item_type == 'LEGAL' and due and due <= today + timedelta(days=14):
+            p_score += 30
+        elif item.item_type == 'BEST_PRACTICE' and item.status == 'OVERDUE':
+            p_score += 20
+        elif item.item_type == 'BEST_PRACTICE' and due and due <= today + timedelta(days=30):
+            p_score += 10
+
+        if p_score > 0 or item.status != 'COMPLIANT':
+            level = 'high' if p_score >= 30 else ('medium' if p_score >= 10 else 'low')
+            serialized = _serialize_item(item)
+            serialized['priority_score'] = p_score
+            serialized['priority_level'] = level
+            priority_items.append(serialized)
+
+    priority_items.sort(key=lambda x: -x['priority_score'])
+
+    # --- Trend data (last 30 days from audit log) ---
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+    logs = ScoreAuditLog.objects.filter(
+        calculated_at__gte=thirty_days_ago
+    ).order_by('calculated_at')
+    trend = [{
+        'date': log.calculated_at.isoformat(),
+        'score': log.score,
+        'trigger': log.get_trigger_display(),
+        'change': log.score - log.previous_score,
+    } for log in logs]
+
+    # --- Dynamic summary text ---
+    summary_parts = []
+    if score_obj.score >= 80:
+        summary_parts.append("You are fully compliant.")
+    overdue_legal = ComplianceItem.objects.filter(status='OVERDUE', item_type='LEGAL').count()
+    if overdue_legal > 0:
+        summary_parts.append(f"{overdue_legal} legal item{'s' if overdue_legal != 1 else ''} overdue — immediate action required.")
+    due_14 = ComplianceItem.objects.filter(
+        status='DUE_SOON', item_type='LEGAL',
+        next_due_date__lte=today + timedelta(days=14)
+    ).count()
+    if due_14 > 0:
+        summary_parts.append(f"{due_14} legal item{'s' if due_14 != 1 else ''} due within 14 days.")
+    if not summary_parts:
+        summary_parts.append(score_obj.interpretation)
+
+    # Accident stats
+    open_accidents = AccidentReport.objects.exclude(status='CLOSED').count()
+    riddor_count = AccidentReport.objects.filter(riddor_reportable=True).count()
+
+    return Response({
+        'score': score_obj.score,
+        'previous_score': score_obj.previous_score,
+        'colour': score_obj.colour,
+        'interpretation': score_obj.interpretation,
+        'summary_text': ' '.join(summary_parts),
+        'total_items': score_obj.total_items,
+        'compliant_count': score_obj.compliant_count,
+        'due_soon_count': score_obj.due_soon_count,
+        'overdue_count': score_obj.overdue_count,
+        'legal_items': score_obj.legal_items,
+        'best_practice_items': score_obj.best_practice_items,
+        'time_horizon': {
+            'overdue': len(horizon['overdue']),
+            'next_7': len(horizon['next_7']),
+            'next_30': len(horizon['next_30']),
+            'next_90': len(horizon['next_90']),
+            'overdue_items': horizon['overdue'],
+            'next_7_items': horizon['next_7'],
+            'next_30_items': horizon['next_30'],
+            'next_90_items': horizon['next_90'],
+        },
+        'trend': trend,
+        'priority_items': priority_items,
+        'open_accidents': open_accidents,
+        'riddor_count': riddor_count,
+    })
