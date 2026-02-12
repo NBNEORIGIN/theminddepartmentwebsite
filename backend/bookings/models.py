@@ -1,7 +1,13 @@
+import uuid
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator, EmailValidator
 from django.utils import timezone
 import threading
+
+DATA_ORIGIN_CHOICES = [
+    ('REAL', 'Real'),
+    ('DEMO', 'Demo'),
+]
 
 # Import intake models
 from .models_intake import IntakeProfile, IntakeWellbeingDisclaimer
@@ -66,6 +72,8 @@ class Service(models.Model):
     # Off-peak smart pricing
     smart_pricing_enabled = models.BooleanField(default=False)
     off_peak_discount_percent = models.FloatField(default=0)
+    data_origin = models.CharField(max_length=4, choices=DATA_ORIGIN_CHOICES, default='REAL', db_index=True)
+    demo_seed_id = models.UUIDField(null=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -157,6 +165,8 @@ class Client(models.Model):
     reliability_score = models.FloatField(default=100.0)
     lifetime_value = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     avg_days_between_bookings = models.FloatField(null=True, blank=True)
+    data_origin = models.CharField(max_length=4, choices=DATA_ORIGIN_CHOICES, default='REAL', db_index=True)
+    demo_seed_id = models.UUIDField(null=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -236,6 +246,8 @@ class Booking(models.Model):
     optimisation_snapshot = models.JSONField(null=True, blank=True)
     override_applied = models.BooleanField(default=False)
     override_reason = models.TextField(blank=True, default='')
+    data_origin = models.CharField(max_length=4, choices=DATA_ORIGIN_CHOICES, default='REAL', db_index=True)
+    demo_seed_id = models.UUIDField(null=True, blank=True, db_index=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

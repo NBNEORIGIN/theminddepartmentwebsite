@@ -355,6 +355,19 @@ export async function getReportsInsights() {
   return apiFetch<any>('/reports/insights/')
 }
 
+// --- Demo Data ---
+export async function getDemoStatus() {
+  return apiFetch<{ has_demo: boolean; has_real: boolean; demo_count: number }>('/demo/status/')
+}
+
+export async function seedDemoData() {
+  return apiFetch<any>('/demo/seed/', { method: 'POST' })
+}
+
+export async function deleteDemoData() {
+  return apiFetch<any>('/demo/seed/', { method: 'DELETE' })
+}
+
 // --- Staff ---
 export async function getStaffList() {
   return apiFetch<any[]>('/staff/')

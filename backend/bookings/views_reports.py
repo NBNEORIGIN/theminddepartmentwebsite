@@ -39,6 +39,11 @@ def _base_qs(request):
         start_time__date__lte=date_to,
     ).select_related('client', 'service', 'staff')
 
+    # Exclude demo data unless explicitly requested
+    include_demo = request.query_params.get('include_demo', '').lower() in ('1', 'true')
+    if not include_demo:
+        qs = qs.filter(data_origin='REAL')
+
     staff_id = request.query_params.get('staff_id')
     if staff_id:
         qs = qs.filter(staff_id=staff_id)
