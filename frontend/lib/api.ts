@@ -450,15 +450,27 @@ export async function getRams() {
 
 // --- Intake / Disclaimer ---
 export async function getIntakeProfiles() {
-  return apiFetch<any[]>('/intake-profiles/')
+  return apiFetch<any[]>('/intake/')
 }
 
 export async function getIntakeStatus(email: string) {
-  return apiFetch<any>(`/intake-profiles/status/?email=${encodeURIComponent(email)}`)
+  return apiFetch<any>(`/intake/status/?email=${encodeURIComponent(email)}`)
 }
 
 export async function expireIntake(id: number) {
-  return apiFetch<any>(`/intake-profiles/${id}/expire/`, { method: 'POST' })
+  return apiFetch<any>(`/intake/${id}/expire/`, { method: 'POST' })
+}
+
+export async function requireRenewal(id: number) {
+  return apiFetch<any>(`/intake/${id}/require_renewal/`, { method: 'POST' })
+}
+
+export async function clearRenewal(id: number) {
+  return apiFetch<any>(`/intake/${id}/clear_renewal/`, { method: 'POST' })
+}
+
+export async function requireRenewalForVersion(disclaimerId: number) {
+  return apiFetch<any>(`/intake-disclaimer/${disclaimerId}/require_renewal/`, { method: 'POST' })
 }
 
 export async function getDisclaimers() {

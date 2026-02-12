@@ -112,7 +112,7 @@ class IntakeProfileViewSet(viewsets.ModelViewSet):
     def expire_all(self, request):
         """
         Manually expire all intake profiles
-        POST /api/intake-profiles/expire-all/
+        POST /api/intake/expire_all/
         """
         from django.utils import timezone
         count = IntakeProfile.objects.filter(completed=True).update(
@@ -121,6 +121,34 @@ class IntakeProfileViewSet(viewsets.ModelViewSet):
         return Response({
             'message': f'Expired {count} intake forms',
             'count': count
+        })
+
+    @action(detail=True, methods=['post'])
+    def require_renewal(self, request, pk=None):
+        """
+        Flag a single client to re-sign on next booking
+        POST /api/intake/{id}/require_renewal/
+        """
+        profile = self.get_object()
+        profile.renewal_required = True
+        profile.save(update_fields=['renewal_required'])
+        return Response({
+            'message': f'Renewal required for {profile.full_name}',
+            'renewal_required': True
+        })
+
+    @action(detail=True, methods=['post'])
+    def clear_renewal(self, request, pk=None):
+        """
+        Clear renewal flag for a single client
+        POST /api/intake/{id}/clear_renewal/
+        """
+        profile = self.get_object()
+        profile.renewal_required = False
+        profile.save(update_fields=['renewal_required'])
+        return Response({
+            'message': f'Renewal cleared for {profile.full_name}',
+            'renewal_required': False
         })
 
 
@@ -148,3 +176,24 @@ class IntakeWellbeingDisclaimerViewSet(viewsets.ModelViewSet):
                 {'error': 'No active disclaimer found'},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+    @action(detail=True, methods=['post'])
+    def require_renewal(self, request, pk=None):
+        """
+        Activate this disclaimer and flag all clients who signed an older version
+        (or no version) to re-sign on their next booking.
+        POST /api/intake-disclaimer/{id}/require_renewal/
+        """
+        disclaimer = self.get_object()
+        # Activate this version (deactivates others via model save)
+        disclaimer.active = True
+        disclaimer.save()
+        # Flag all completed profiles that signed a different (or no) version
+        count = IntakeProfile.objects.filter(completed=True).exclude(
+            disclaimer_version=disclaimer
+        ).update(renewal_required=True)
+        return Response({
+            'message': f'Disclaimer v{disclaimer.version} activated. {count} client(s) flagged for renewal.',
+            'count': count,
+            'version': disclaimer.version,
+        })

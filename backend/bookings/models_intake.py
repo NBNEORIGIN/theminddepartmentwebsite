@@ -51,6 +51,20 @@ class IntakeProfile(models.Model):
         help_text='Confirmed reading and accepting privacy policy'
     )
     
+    # Disclaimer version signed
+    disclaimer_version = models.ForeignKey(
+        'IntakeWellbeingDisclaimer',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='signed_profiles',
+        help_text='Which disclaimer version was signed'
+    )
+    renewal_required = models.BooleanField(
+        default=False,
+        help_text='Owner has flagged this client to re-sign on next booking'
+    )
+    
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -89,7 +103,7 @@ class IntakeProfile(models.Model):
         return timezone.now() > self.expires_at
     
     def is_valid_for_booking(self):
-        """Check if intake is complete, consents given, and not expired"""
+        """Check if intake is complete, consents given, not expired, and not flagged for renewal"""
         return (
             self.completed and
             self.consent_booking and
@@ -99,7 +113,8 @@ class IntakeProfile(models.Model):
             self.phone and
             self.emergency_contact_name and
             self.emergency_contact_phone and
-            not self.is_expired()
+            not self.is_expired() and
+            not self.renewal_required
         )
     
     def save(self, *args, **kwargs):

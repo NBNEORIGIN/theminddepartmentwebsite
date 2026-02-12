@@ -10,6 +10,7 @@ class IntakeProfileSerializer(serializers.ModelSerializer):
     
     is_valid_for_booking = serializers.SerializerMethodField()
     is_expired = serializers.SerializerMethodField()
+    disclaimer_version_str = serializers.SerializerMethodField()
     
     class Meta:
         model = IntakeProfile
@@ -26,6 +27,9 @@ class IntakeProfileSerializer(serializers.ModelSerializer):
             'consent_booking',
             'consent_marketing',
             'consent_privacy',
+            'disclaimer_version',
+            'disclaimer_version_str',
+            'renewal_required',
             'completed',
             'completed_date',
             'expires_at',
@@ -34,13 +38,18 @@ class IntakeProfileSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
-        read_only_fields = ['id', 'completed', 'completed_date', 'expires_at', 'created_at', 'updated_at', 'is_valid_for_booking', 'is_expired']
+        read_only_fields = ['id', 'completed', 'completed_date', 'expires_at', 'created_at', 'updated_at', 'is_valid_for_booking', 'is_expired', 'disclaimer_version_str']
     
     def get_is_valid_for_booking(self, obj):
         return obj.is_valid_for_booking()
     
     def get_is_expired(self, obj):
         return obj.is_expired()
+    
+    def get_disclaimer_version_str(self, obj):
+        if obj.disclaimer_version:
+            return f'v{obj.disclaimer_version.version}'
+        return None
     
     def validate_email(self, value):
         """Ensure email is unique for new profiles"""
@@ -70,8 +79,12 @@ class IntakeProfileSerializer(serializers.ModelSerializer):
 
 class IntakeWellbeingDisclaimerSerializer(serializers.ModelSerializer):
     """Serializer for wellbeing disclaimer"""
+    signed_count = serializers.SerializerMethodField()
     
     class Meta:
         model = IntakeWellbeingDisclaimer
-        fields = ['id', 'version', 'content', 'active', 'created_at']
-        read_only_fields = ['id', 'created_at']
+        fields = ['id', 'version', 'content', 'active', 'created_at', 'signed_count']
+        read_only_fields = ['id', 'created_at', 'signed_count']
+    
+    def get_signed_count(self, obj):
+        return obj.signed_profiles.count()
