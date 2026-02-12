@@ -19,6 +19,55 @@ function fmtDate(d: string | null) {
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
+function DueSoonList({ api, onItemClick }: { api: string; onItemClick: (item: any) => void }) {
+  const [items, setItems] = useState<any[]>([])
+  useEffect(() => {
+    fetch(`${api}/items/?status=DUE_SOON`).then(r => r.ok ? r.json() : []).then(setItems).catch(() => {})
+  }, [api])
+  if (items.length === 0) return <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>No items due soon.</p>
+  return (
+    <div style={{ display: 'grid', gap: '0.25rem' }}>
+      {items.map((item: any) => (
+        <div key={item.id} onClick={() => onItemClick(item)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius)', cursor: 'pointer', border: '1px solid var(--color-border)' }}>
+          <div>
+            <span style={{ fontWeight: 600 }}>{item.title}</span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginLeft: '0.5rem' }}>{item.category}</span>
+            {item.document && <span style={{ fontSize: '0.75rem', color: 'var(--color-success)', marginLeft: '0.5rem' }}>✓ cert</span>}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
+            <span style={{ color: 'var(--color-warning)', fontWeight: 600 }}>Due {fmtDate(item.next_due_date)}</span>
+            <span className={`badge ${item.item_type === 'LEGAL' ? 'badge-danger' : 'badge-info'}`} style={{ fontSize: '0.7rem' }}>{item.item_type === 'LEGAL' ? 'Legal' : 'BP'}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function OverdueList({ api, onItemClick }: { api: string; onItemClick: (item: any) => void }) {
+  const [items, setItems] = useState<any[]>([])
+  useEffect(() => {
+    fetch(`${api}/items/?status=OVERDUE`).then(r => r.ok ? r.json() : []).then(setItems).catch(() => {})
+  }, [api])
+  if (items.length === 0) return <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>No overdue items.</p>
+  return (
+    <div style={{ display: 'grid', gap: '0.25rem' }}>
+      {items.map((item: any) => (
+        <div key={item.id} onClick={() => onItemClick(item)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius)', cursor: 'pointer', border: '1px solid var(--color-border)', background: '#fef2f2' }}>
+          <div>
+            <span style={{ fontWeight: 600 }}>{item.title}</span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginLeft: '0.5rem' }}>{item.category}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
+            <span style={{ color: 'var(--color-danger)', fontWeight: 600 }}>Was due {fmtDate(item.next_due_date)}</span>
+            <span className={`badge ${item.item_type === 'LEGAL' ? 'badge-danger' : 'badge-info'}`} style={{ fontSize: '0.7rem' }}>{item.item_type === 'LEGAL' ? 'Legal' : 'BP'}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function AdminHSEPage() {
   const [tab, setTab] = useState<Tab>('dashboard')
   const [dash, setDash] = useState<any>(null)
@@ -172,52 +221,85 @@ export default function AdminHSEPage() {
         ))}
       </div>
 
-      {/* ===== COMPLETION MODAL ===== */}
+      {/* ===== ITEM DETAIL / COMPLETION MODAL ===== */}
       {completeItem && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          <form onSubmit={handleComplete} className="card" style={{ maxWidth: 500, width: '100%', padding: '2rem', position: 'relative' }}>
+          <div className="card" style={{ maxWidth: 600, width: '100%', padding: '2rem', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
             <button type="button" onClick={() => setCompleteItem(null)} style={{ position: 'absolute', top: 12, right: 16, background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>×</button>
-            <h2 style={{ marginBottom: '0.5rem' }}>Complete: {completeItem.title}</h2>
-            <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
-              {completeItem.legal_reference || completeItem.regulatory_ref || ''}
-            </p>
-            <div style={{ display: 'grid', gap: '0.75rem' }}>
-              <div>
-                <label>Completion Date *</label>
-                <input name="completed_date" type="date" required defaultValue={new Date().toISOString().split('T')[0]} />
-              </div>
-              <div>
-                <label>Completed By</label>
-                <input name="completed_by" placeholder="Name of person" />
-              </div>
-              <div>
-                <label>Comments</label>
-                <textarea name="comments" rows={3} placeholder="Any notes about this completion..." />
-              </div>
-              {completeItem.evidence_required && (
-                <div>
-                  <label>Evidence Upload {completeItem.evidence_required ? '*' : ''}</label>
-                  <input name="evidence" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
-                  <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>PDF, image, or document</div>
-                </div>
-              )}
-              {!completeItem.evidence_required && (
-                <div>
-                  <label>Evidence Upload (optional)</label>
-                  <input name="evidence" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
-                </div>
+
+            {/* Item Header */}
+            <h2 style={{ marginBottom: '0.25rem' }}>{completeItem.title}</h2>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+              <span className={`badge ${completeItem.item_type === 'LEGAL' ? 'badge-danger' : 'badge-info'}`}>{completeItem.item_type === 'LEGAL' ? 'Legal Requirement' : 'Best Practice'}</span>
+              <span className={`badge ${completeItem.status === 'OVERDUE' ? 'badge-danger' : completeItem.status === 'DUE_SOON' ? 'badge-warning' : 'badge-success'}`}>{completeItem.status}</span>
+              <span className="badge badge-neutral">{completeItem.frequency_type}</span>
+            </div>
+
+            {/* Item Details */}
+            {completeItem.description && <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>{completeItem.description}</p>}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.85rem' }}>
+              <div><strong>Category:</strong> {completeItem.category}</div>
+              <div><strong>Frequency:</strong> {completeItem.frequency_type}</div>
+              <div><strong>Next Due:</strong> {fmtDate(completeItem.next_due_date)}</div>
+              <div><strong>Last Completed:</strong> {fmtDate(completeItem.last_completed_date)}</div>
+              {completeItem.completed_by && <div><strong>Completed By:</strong> {completeItem.completed_by}</div>}
+              {(completeItem.regulatory_ref || completeItem.legal_reference) && (
+                <div style={{ gridColumn: '1 / -1' }}><strong>Legal Reference:</strong> {completeItem.legal_reference || completeItem.regulatory_ref}</div>
               )}
             </div>
-            <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
-              <button type="submit" className="btn btn-primary">Mark Complete</button>
-              <button type="button" className="btn btn-ghost" onClick={() => setCompleteItem(null)}>Cancel</button>
-            </div>
-            {completeItem.frequency_type !== 'ad_hoc' && (
-              <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.75rem' }}>
-                Next due date will be auto-calculated based on <strong>{completeItem.frequency_type}</strong> frequency.
-              </p>
+
+            {/* Existing Document */}
+            {completeItem.document && (
+              <div style={{ padding: '0.75rem', background: 'var(--color-primary-light)', borderRadius: 'var(--radius)', marginBottom: '1rem' }}>
+                <strong>Current Certificate/Evidence:</strong>
+                <a href={completeItem.document} target="_blank" rel="noopener" style={{ marginLeft: '0.5rem', textDecoration: 'underline' }}>View Document</a>
+              </div>
             )}
-          </form>
+
+            {completeItem.notes && (
+              <div style={{ padding: '0.75rem', background: 'var(--color-bg)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.85rem' }}>
+                <strong>Notes:</strong> {completeItem.notes}
+              </div>
+            )}
+
+            {/* Completion Form */}
+            <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '1rem', marginTop: '0.5rem' }}>
+              <h3 style={{ marginBottom: '0.75rem' }}>{completeItem.status === 'COMPLIANT' ? 'Record New Completion' : 'Mark as Complete'}</h3>
+              <form onSubmit={handleComplete}>
+                <div style={{ display: 'grid', gap: '0.75rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <div>
+                      <label>Completion Date *</label>
+                      <input name="completed_date" type="date" required defaultValue={new Date().toISOString().split('T')[0]} />
+                    </div>
+                    <div>
+                      <label>Completed By</label>
+                      <input name="completed_by" placeholder="Name of person or company" />
+                    </div>
+                  </div>
+                  <div>
+                    <label>Upload Certificate / Evidence {completeItem.evidence_required ? '*' : '(optional)'}</label>
+                    <input name="evidence" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>PDF, image, or document — saved to your Documents vault</div>
+                  </div>
+                  <div>
+                    <label>Comments</label>
+                    <textarea name="comments" rows={2} placeholder="Any notes about this inspection/completion..." />
+                  </div>
+                </div>
+                <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <button type="submit" className="btn btn-primary">{completeItem.status === 'COMPLIANT' ? 'Record Completion' : 'Mark Complete'}</button>
+                  <button type="button" className="btn btn-ghost" onClick={() => setCompleteItem(null)}>Cancel</button>
+                </div>
+                {completeItem.frequency_type !== 'ad_hoc' && (
+                  <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.75rem' }}>
+                    Next due date will be auto-calculated: <strong>{completeItem.frequency_type}</strong> from completion date.
+                  </p>
+                )}
+              </form>
+            </div>
+          </div>
         </div>
       )}
 
@@ -240,10 +322,26 @@ export default function AdminHSEPage() {
               <div className="stat-card"><div className="stat-number" style={{ color: d.riddor_count > 0 ? 'var(--color-danger)' : undefined }}>{d.riddor_count || 0}</div><div className="stat-label">RIDDOR Reports</div></div>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '1.5rem' }}>
             <span>Legal: <strong>{d.legal_items}</strong> (2× weight)</span>
             <span>Best Practice: <strong>{d.best_practice_items}</strong> (1× weight)</span>
           </div>
+
+          {/* Upcoming Reminders */}
+          {d.due_soon_count > 0 && (
+            <div className="card" style={{ marginBottom: '1rem' }}>
+              <h3 style={{ marginBottom: '0.75rem', color: 'var(--color-warning)' }}>⚠ Upcoming — Due Within 30 Days</h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>These items need attention soon. Click any item to upload a certificate and mark as complete.</p>
+              <DueSoonList api={API} onItemClick={(item: any) => { setCompleteItem(item) }} />
+            </div>
+          )}
+          {d.overdue_count > 0 && (
+            <div className="card" style={{ marginBottom: '1rem', borderLeft: '4px solid var(--color-danger)' }}>
+              <h3 style={{ marginBottom: '0.75rem', color: 'var(--color-danger)' }}>🚨 Overdue Items</h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>These items are past their due date and require immediate action.</p>
+              <OverdueList api={API} onItemClick={(item: any) => { setCompleteItem(item) }} />
+            </div>
+          )}
         </div>
       )}
 
@@ -280,10 +378,11 @@ export default function AdminHSEPage() {
                 </thead>
                 <tbody>
                   {items.map((item: any) => (
-                    <tr key={item.id}>
+                    <tr key={item.id} onClick={() => setCompleteItem(item)} style={{ cursor: 'pointer' }} title="Click to view details and record completion">
                       <td>
-                        <div style={{ fontWeight: 600 }}>{item.title}</div>
+                        <div style={{ fontWeight: 600, color: 'var(--color-primary-dark)' }}>{item.title}</div>
                         {item.evidence_required && <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Evidence required</span>}
+                        {item.document && <span style={{ fontSize: '0.75rem', color: 'var(--color-success)', marginLeft: '0.5rem' }}>✓ Certificate on file</span>}
                       </td>
                       <td style={{ fontSize: '0.85rem' }}>{item.category}</td>
                       <td><span className={`badge ${item.item_type === 'LEGAL' ? 'badge-danger' : 'badge-info'}`}>{item.item_type === 'LEGAL' ? 'Legal' : 'Best Practice'}</span></td>
@@ -296,8 +395,8 @@ export default function AdminHSEPage() {
                       <td><span className={`badge ${item.status === 'OVERDUE' ? 'badge-danger' : item.status === 'DUE_SOON' ? 'badge-warning' : 'badge-success'}`}>{item.status}</span></td>
                       <td style={{ fontSize: '0.75rem', maxWidth: 120 }}>{item.regulatory_ref}</td>
                       <td>
-                        <button className="btn btn-sm btn-primary" onClick={() => setCompleteItem(item)}>Complete</button>
-                        {item.document && <a href={item.document} target="_blank" rel="noopener" className="btn btn-sm btn-ghost" style={{ marginLeft: '0.25rem' }}>View</a>}
+                        <button className="btn btn-sm btn-primary" onClick={(e) => { e.stopPropagation(); setCompleteItem(item) }}>Complete</button>
+                        {item.document && <a href={item.document} target="_blank" rel="noopener" className="btn btn-sm btn-ghost" style={{ marginLeft: '0.25rem' }} onClick={(e) => e.stopPropagation()}>View</a>}
                       </td>
                     </tr>
                   ))}

@@ -245,7 +245,10 @@ def mark_complete(request, item_id):
         'id': item.id,
         'title': item.title,
         'status': 'COMPLIANT',
-        'next_due_date': item.next_due_date.isoformat() if item.next_due_date else None,
+        'next_due_date': _safe_date(item.next_due_date),
+        'last_completed_date': _safe_date(item.last_completed_date),
+        'completed_by': item.completed_by,
+        'document': item.document.url if item.document else None,
         'message': f'"{item.title}" marked as compliant. Next due: {item.next_due_date}',
     })
 
