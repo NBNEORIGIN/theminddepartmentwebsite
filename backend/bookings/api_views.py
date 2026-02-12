@@ -174,6 +174,23 @@ class BookingViewSet(viewsets.ModelViewSet):
                     notes=notes
                 )
                 
+                # Auto-create CRM lead if not exists
+                try:
+                    from crm.models import Lead
+                    if not Lead.objects.filter(client_id=client.id).exists():
+                        Lead.objects.create(
+                            name=client.name,
+                            email=client.email,
+                            phone=client.phone,
+                            source='booking',
+                            status='QUALIFIED',
+                            value_pence=service.price_pence,
+                            notes=f'Auto-created from booking #{booking.id}',
+                            client_id=client.id,
+                        )
+                except Exception:
+                    pass  # CRM is optional, don't break bookings
+
                 # Prepare response data first
                 response_data = {
                     'id': booking.id,
