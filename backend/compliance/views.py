@@ -152,19 +152,26 @@ def items_create(request):
     cat_name = d.get('category', '')
     cat, _ = ComplianceCategory.objects.get_or_create(name=cat_name, defaults={'max_score': 10})
 
-    item = ComplianceItem.objects.create(
-        title=d.get('title', ''),
-        description=d.get('description', ''),
-        category=cat,
-        item_type=d.get('item_type', 'BEST_PRACTICE'),
-        frequency_type=d.get('frequency_type', 'annual'),
-        next_due_date=d.get('next_due_date') or None,
-        evidence_required=d.get('evidence_required', False),
-        regulatory_ref=d.get('regulatory_ref', ''),
-        legal_reference=d.get('legal_reference', ''),
-        notes=d.get('notes', ''),
-    )
-    return Response(_serialize_item(item), status=status.HTTP_201_CREATED)
+    try:
+        item = ComplianceItem.objects.create(
+            title=d.get('title', ''),
+            description=d.get('description', ''),
+            category=cat,
+            item_type=d.get('item_type', 'BEST_PRACTICE'),
+            frequency_type=d.get('frequency_type', 'annual'),
+            next_due_date=d.get('next_due_date') or None,
+            evidence_required=d.get('evidence_required', False),
+            regulatory_ref=d.get('regulatory_ref', ''),
+            legal_reference=d.get('legal_reference', ''),
+            notes=d.get('notes', ''),
+        )
+        return Response(_serialize_item(item), status=status.HTTP_201_CREATED)
+    except Exception as e:
+        import traceback
+        return Response({
+            'error': str(e),
+            'traceback': traceback.format_exc(),
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])
