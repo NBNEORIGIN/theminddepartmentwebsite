@@ -199,6 +199,9 @@ class BookingViewSet(viewsets.ModelViewSet):
                 except Exception:
                     pass  # CRM is optional, don't break bookings
 
+                # Refresh from DB to get SBE-updated fields
+                booking.refresh_from_db()
+
                 # Prepare response data first
                 response_data = {
                     'id': booking.id,
@@ -212,6 +215,15 @@ class BookingViewSet(viewsets.ModelViewSet):
                     'end_time': booking.end_time.isoformat(),
                     'status': booking.status,
                     'notes': booking.notes,
+                    'risk_score': booking.risk_score,
+                    'risk_level': booking.risk_level,
+                    'revenue_at_risk': float(booking.revenue_at_risk) if booking.revenue_at_risk else None,
+                    'recommended_payment_type': booking.recommended_payment_type,
+                    'recommended_deposit_percent': booking.recommended_deposit_percent,
+                    'recommended_price_adjustment': float(booking.recommended_price_adjustment) if booking.recommended_price_adjustment else None,
+                    'recommended_incentive': booking.recommended_incentive,
+                    'recommendation_reason': booking.recommendation_reason,
+                    'override_applied': booking.override_applied,
                     'created_at': booking.created_at.isoformat(),
                     'updated_at': booking.updated_at.isoformat(),
                 }
@@ -392,6 +404,20 @@ The Mind Department"""
             on_booking_status_change(booking, old_status, 'completed')
         except Exception:
             pass
+        return Response(BookingSerializer(booking).data)
+
+    @action(detail=True, methods=['post'])
+    def override(self, request, pk=None):
+        """POST /api/bookings/<id>/override/ — Owner overrides SBE recommendation"""
+        booking = self.get_object()
+        reason = request.data.get('reason', '')
+        if not reason:
+            return Response({'error': 'Override reason is required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            from .smart_engine import log_override
+            log_override(booking, reason)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(BookingSerializer(booking).data)
 
 
