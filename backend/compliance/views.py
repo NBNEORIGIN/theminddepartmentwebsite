@@ -152,26 +152,19 @@ def items_create(request):
     cat_name = d.get('category', '')
     cat, _ = ComplianceCategory.objects.get_or_create(name=cat_name, defaults={'max_score': 10})
 
-    try:
-        item = ComplianceItem.objects.create(
-            title=d.get('title', ''),
-            description=d.get('description', ''),
-            category=cat,
-            item_type=d.get('item_type', 'BEST_PRACTICE'),
-            frequency_type=d.get('frequency_type', 'annual'),
-            next_due_date=d.get('next_due_date') or None,
-            evidence_required=d.get('evidence_required', False),
-            regulatory_ref=d.get('regulatory_ref', ''),
-            legal_reference=d.get('legal_reference', ''),
-            notes=d.get('notes', ''),
-        )
-        return Response(_serialize_item(item), status=status.HTTP_201_CREATED)
-    except Exception as e:
-        import traceback
-        return Response({
-            'error': str(e),
-            'traceback': traceback.format_exc(),
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    item = ComplianceItem.objects.create(
+        title=d.get('title', ''),
+        description=d.get('description', ''),
+        category=cat,
+        item_type=d.get('item_type', 'BEST_PRACTICE'),
+        frequency_type=d.get('frequency_type', 'annual'),
+        next_due_date=d.get('next_due_date') or None,
+        evidence_required=d.get('evidence_required', False),
+        regulatory_ref=d.get('regulatory_ref', ''),
+        legal_reference=d.get('legal_reference', ''),
+        notes=d.get('notes', ''),
+    )
+    return Response(_serialize_item(item), status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET'])
@@ -183,6 +176,18 @@ def items_detail(request, item_id):
     except ComplianceItem.DoesNotExist:
         return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
     return Response(_serialize_item(item))
+
+
+@api_view(['DELETE'])
+@permission_classes([AllowAny])
+def items_delete(request, item_id):
+    """DELETE /api/compliance/items/<id>/delete/"""
+    try:
+        item = ComplianceItem.objects.get(id=item_id)
+    except ComplianceItem.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+    item.delete()
+    return Response({'message': 'Deleted'}, status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['POST'])

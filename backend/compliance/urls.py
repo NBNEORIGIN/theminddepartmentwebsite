@@ -16,6 +16,7 @@ urlpatterns = [
     path('items/create/', views.items_create, name='items-create'),
     path('items/<int:item_id>/', views.items_detail, name='items-detail'),
     path('items/<int:item_id>/complete/', views.mark_complete, name='mark-complete'),
+    path('items/<int:item_id>/delete/', views.items_delete, name='items-delete'),
     # Calendar
     path('calendar/', views.calendar_data, name='calendar'),
     # Accident log
