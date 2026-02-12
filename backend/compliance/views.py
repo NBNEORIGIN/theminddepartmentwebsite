@@ -44,11 +44,20 @@ def _serialize_item(item):
     }
 
 
+def _safe_date(val):
+    """Ensure val is a string (isoformat) regardless of type."""
+    if val is None:
+        return None
+    if isinstance(val, str):
+        return val
+    return val.isoformat()
+
+
 def _serialize_accident(a):
     """Serialize an AccidentReport to dict."""
     return {
         'id': a.id,
-        'date': a.date.isoformat(),
+        'date': _safe_date(a.date),
         'time': a.time.strftime('%H:%M') if a.time else None,
         'location': a.location,
         'person_involved': a.person_involved,
@@ -58,11 +67,11 @@ def _serialize_accident(a):
         'status': a.status,
         'riddor_reportable': a.riddor_reportable,
         'hse_reference': a.hse_reference,
-        'riddor_reported_date': a.riddor_reported_date.isoformat() if a.riddor_reported_date else None,
+        'riddor_reported_date': _safe_date(a.riddor_reported_date),
         'follow_up_required': a.follow_up_required,
         'follow_up_notes': a.follow_up_notes,
         'follow_up_completed': a.follow_up_completed,
-        'follow_up_completed_date': a.follow_up_completed_date.isoformat() if a.follow_up_completed_date else None,
+        'follow_up_completed_date': _safe_date(a.follow_up_completed_date),
         'document': a.document.url if a.document else None,
         'reported_by': a.reported_by,
         'created_at': a.created_at.isoformat(),
@@ -311,30 +320,23 @@ def accidents_create(request):
         parts = d['time'].split(':')
         time_val = dt_time(int(parts[0]), int(parts[1]))
 
-    try:
-        a = AccidentReport.objects.create(
-            date=d.get('date'),
-            time=time_val,
-            location=d.get('location', ''),
-            person_involved=d.get('person_involved', ''),
-            person_role=d.get('person_role', ''),
-            description=d.get('description', ''),
-            severity=d.get('severity', 'MINOR'),
-            riddor_reportable=d.get('riddor_reportable', False),
-            hse_reference=d.get('hse_reference', ''),
-            follow_up_required=d.get('follow_up_required', False),
-            reported_by=d.get('reported_by', ''),
-        )
-        if request.FILES.get('document'):
-            a.document = request.FILES['document']
-            a.save()
-        return Response(_serialize_accident(a), status=status.HTTP_201_CREATED)
-    except Exception as e:
-        import traceback
-        return Response({
-            'error': str(e),
-            'traceback': traceback.format_exc(),
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    a = AccidentReport.objects.create(
+        date=d.get('date'),
+        time=time_val,
+        location=d.get('location', ''),
+        person_involved=d.get('person_involved', ''),
+        person_role=d.get('person_role', ''),
+        description=d.get('description', ''),
+        severity=d.get('severity', 'MINOR'),
+        riddor_reportable=d.get('riddor_reportable', False),
+        hse_reference=d.get('hse_reference', ''),
+        follow_up_required=d.get('follow_up_required', False),
+        reported_by=d.get('reported_by', ''),
+    )
+    if request.FILES.get('document'):
+        a.document = request.FILES['document']
+        a.save()
+    return Response(_serialize_accident(a), status=status.HTTP_201_CREATED)
 
 
 @api_view(['PATCH'])
