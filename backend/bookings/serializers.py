@@ -49,8 +49,17 @@ class BookingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
         fields = ['id', 'client', 'client_name', 'service', 'service_name', 'staff', 'staff_name', 
-                  'start_time', 'end_time', 'status', 'notes', 'created_at', 'updated_at']
-        read_only_fields = ['end_time', 'created_at', 'updated_at']
+                  'start_time', 'end_time', 'status', 'notes',
+                  'risk_score', 'risk_level', 'revenue_at_risk',
+                  'recommended_payment_type', 'recommended_deposit_percent',
+                  'recommended_price_adjustment', 'recommended_incentive',
+                  'recommendation_reason', 'override_applied',
+                  'created_at', 'updated_at']
+        read_only_fields = ['end_time', 'created_at', 'updated_at',
+                           'risk_score', 'risk_level', 'revenue_at_risk',
+                           'recommended_payment_type', 'recommended_deposit_percent',
+                           'recommended_price_adjustment', 'recommended_incentive',
+                           'recommendation_reason', 'override_applied']
 
 
 class SessionSerializer(serializers.ModelSerializer):
