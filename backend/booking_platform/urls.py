@@ -24,6 +24,7 @@ from bookings.views_intake import IntakeProfileViewSet, IntakeWellbeingDisclaime
 from bookings.views_payment import ClassPackageViewSet, ClientCreditViewSet, PaymentIntegrationViewSet
 from bookings.views_stripe import create_checkout_session, stripe_webhook
 from bookings.views_dashboard import dashboard_summary, backfill_sbe
+from bookings.views_reports import reports_overview, reports_daily, reports_monthly, reports_staff, reports_insights
 from core.auth_views import login_view, me_view, set_password_view
 
 router = DefaultRouter()
@@ -60,5 +61,10 @@ urlpatterns = [
     path('api/crm/', include('crm.urls')),
     path('api/dashboard-summary/', dashboard_summary, name='dashboard-summary'),
     path('api/backfill-sbe/', backfill_sbe, name='backfill-sbe'),
+    path('api/reports/overview/', reports_overview, name='reports-overview'),
+    path('api/reports/daily/', reports_daily, name='reports-daily'),
+    path('api/reports/monthly/', reports_monthly, name='reports-monthly'),
+    path('api/reports/staff/', reports_staff, name='reports-staff'),
+    path('api/reports/insights/', reports_insights, name='reports-insights'),
     path('', include('core.urls')),
 ]

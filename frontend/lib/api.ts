@@ -320,6 +320,41 @@ export async function getBookingReports(params?: { report?: string; date_from?: 
   return apiFetch<any>(`/bookings/reports/${q ? '?' + q : ''}`)
 }
 
+function _reportQs(params?: { date_from?: string; date_to?: string; staff_id?: number; service_id?: number; risk_level?: string; payment_status?: string }) {
+  const qs = new URLSearchParams()
+  if (params?.date_from) qs.set('date_from', params.date_from)
+  if (params?.date_to) qs.set('date_to', params.date_to)
+  if (params?.staff_id) qs.set('staff_id', String(params.staff_id))
+  if (params?.service_id) qs.set('service_id', String(params.service_id))
+  if (params?.risk_level) qs.set('risk_level', params.risk_level)
+  if (params?.payment_status) qs.set('payment_status', params.payment_status)
+  return qs.toString()
+}
+
+export async function getReportsOverview(params?: Parameters<typeof _reportQs>[0]) {
+  const q = _reportQs(params)
+  return apiFetch<any>(`/reports/overview/${q ? '?' + q : ''}`)
+}
+
+export async function getReportsDaily(params?: Parameters<typeof _reportQs>[0]) {
+  const q = _reportQs(params)
+  return apiFetch<any>(`/reports/daily/${q ? '?' + q : ''}`)
+}
+
+export async function getReportsMonthly(params?: Parameters<typeof _reportQs>[0]) {
+  const q = _reportQs(params)
+  return apiFetch<any>(`/reports/monthly/${q ? '?' + q : ''}`)
+}
+
+export async function getReportsStaff(params?: Parameters<typeof _reportQs>[0]) {
+  const q = _reportQs(params)
+  return apiFetch<any>(`/reports/staff/${q ? '?' + q : ''}`)
+}
+
+export async function getReportsInsights() {
+  return apiFetch<any>('/reports/insights/')
+}
+
 // --- Staff ---
 export async function getStaffList() {
   return apiFetch<any[]>('/staff/')
