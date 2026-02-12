@@ -27,7 +27,7 @@ from core.auth_views import login_view, me_view, set_password_view
 
 router = DefaultRouter()
 router.register(r'services', ServiceViewSet, basename='service')
-router.register(r'staff', StaffViewSet)
+router.register(r'staff', StaffViewSet, basename='staff')
 router.register(r'bookings', BookingViewSet)
 router.register(r'clients', ClientViewSet)
 router.register(r'staff-blocks', StaffBlockViewSet, basename='staff-block')
