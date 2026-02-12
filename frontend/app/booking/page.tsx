@@ -47,6 +47,7 @@ export default function CompactBookingPage() {
 
   const [submitting, setSubmitting] = useState(false)
   const [paymentStatus, setPaymentStatus] = useState<string>('')
+  const [confirmationDetails, setConfirmationDetails] = useState<any>(null)
 
   useEffect(() => {
     fetchData()
@@ -59,6 +60,14 @@ export default function CompactBookingPage() {
       setCustomerEmail(emailParam)
     }
     if (payment === 'success' && bookingId) {
+      // Restore booking details saved before Stripe redirect
+      try {
+        const saved = localStorage.getItem('pending_booking')
+        if (saved) {
+          setConfirmationDetails(JSON.parse(saved))
+          localStorage.removeItem('pending_booking')
+        }
+      } catch {}
       setBookingComplete(true)
       setPaymentStatus('success')
       window.history.replaceState({}, '', '/booking')
@@ -216,11 +225,23 @@ export default function CompactBookingPage() {
 
       const result = await response.json()
 
+      // Save booking summary for confirmation page
+      const summary = {
+        serviceName: selectedService.name,
+        staffName: selectedStaff.name,
+        date: format(selectedDate, 'EEEE, MMMM d, yyyy'),
+        time: selectedTime,
+        price: selectedService.price,
+        duration: selectedService.duration_minutes,
+      }
+
       if (result.free) {
         // Free service — confirmed immediately
+        setConfirmationDetails(summary)
         setBookingComplete(true)
       } else if (result.checkout_url) {
-        // Paid service — redirect to Stripe Checkout
+        // Paid service — save details then redirect to Stripe Checkout
+        localStorage.setItem('pending_booking', JSON.stringify(summary))
         window.location.href = result.checkout_url
       } else {
         throw new Error('Unexpected response from server')
@@ -243,16 +264,24 @@ export default function CompactBookingPage() {
   }
 
   if (bookingComplete) {
+    const cd = confirmationDetails
     return (
       <div className="booking-container">
         <div className="success-message">
           <h2>Session Confirmed!</h2>
           <p>Your wellness session has been successfully booked.</p>
-          <p><strong>Service:</strong> {selectedService?.name}</p>
-          <p><strong>Facilitator:</strong> {selectedStaff?.name}</p>
-          <p><strong>Date:</strong> {selectedDate && format(selectedDate, 'EEEE, MMMM d, yyyy')}</p>
-          <p><strong>Time:</strong> {selectedTime}</p>
-          <p><strong>Total:</strong> {selectedService?.price}</p>
+          {cd ? (
+            <>
+              <p><strong>Service:</strong> {cd.serviceName}</p>
+              <p><strong>Facilitator:</strong> {cd.staffName}</p>
+              <p><strong>Date:</strong> {cd.date}</p>
+              <p><strong>Time:</strong> {cd.time}</p>
+              <p><strong>Duration:</strong> {cd.duration} minutes</p>
+              <p><strong>Total:</strong> {Number(cd.price) > 0 ? `\u00A3${cd.price}` : 'Free'}</p>
+            </>
+          ) : (
+            <p>A confirmation email has been sent with your booking details.</p>
+          )}
           <button className="submit-button" onClick={() => window.location.reload()}>
             Book Another Session
           </button>
