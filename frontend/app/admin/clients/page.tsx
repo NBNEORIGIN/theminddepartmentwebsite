@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { getLeads, createLead, updateLeadStatus, updateLead } from '@/lib/api'
+import { getLeads, createLead, updateLeadStatus, updateLead, syncLeadsFromBookings } from '@/lib/api'
 
 const C = {
   bg: '#0f172a', card: '#1e293b', cardAlt: '#273548', text: '#f8fafc', muted: '#94a3b8',
@@ -38,20 +38,20 @@ export default function AdminClientsPage() {
 
   async function handleSync() {
     setSyncing(true)
-    try {
-      const res = await fetch('/api/django/crm/sync/', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
-      const data = await res.json()
-      setToast({ msg: data.message || `${data.created} leads synced`, type: 'ok' })
+    const res = await syncLeadsFromBookings()
+    if (res.data) {
+      setToast({ msg: res.data.message || `${res.data.created} leads synced`, type: 'ok' })
       loadLeads()
-    } catch (e: any) {
-      setToast({ msg: e.message || 'Sync failed', type: 'err' })
+    } else {
+      setToast({ msg: res.error || 'Sync failed', type: 'err' })
     }
     setSyncing(false)
   }
 
   function handleExportCSV() {
     const statusParam = filter !== 'ALL' ? `?status=${filter}` : ''
-    window.open(`/api/django/crm/leads/export/${statusParam}`, '_blank')
+    const base = process.env.NEXT_PUBLIC_API_BASE || 'https://theminddepartment-api.fly.dev/api'
+    window.open(`${base}/crm/leads/export/${statusParam}`, '_blank')
   }
 
   async function handleAddLead(e: React.FormEvent<HTMLFormElement>) {

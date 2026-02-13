@@ -813,6 +813,10 @@ export async function updateLead(id: number, data: Record<string, any>) {
   return apiFetch<any>(`/crm/leads/${id}/status/`, { method: 'POST', body: JSON.stringify(data) })
 }
 
+export async function syncLeadsFromBookings() {
+  return apiFetch<any>('/crm/sync/', { method: 'POST' })
+}
+
 // --- Smart Dashboard ---
 export async function getDashboardSummary() {
   return apiFetch<any>('/dashboard-summary/')
