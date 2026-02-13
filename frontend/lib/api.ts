@@ -670,15 +670,12 @@ export async function getTimesheetSummary(params?: { period?: string; date?: str
 }
 
 // --- Media URL helper ---
-const BACKEND_BASE = typeof window !== 'undefined'
-  ? (process.env.NEXT_PUBLIC_API_BASE_URL || '').trim()
-  : (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000').trim()
-
+// Media files are proxied through /api/files/ which forwards to the Django/Railway backend.
 export function getMediaUrl(path: string | null | undefined): string {
   if (!path) return ''
   if (path.startsWith('http://') || path.startsWith('https://')) return path
-  // Relative path from backend — prepend backend base
-  return `${BACKEND_BASE}${path.startsWith('/') ? '' : '/'}${path}`
+  // Route through the media proxy: /api/files/documents/... → DJANGO_BACKEND_URL/documents/...
+  return `/api/files${path.startsWith('/') ? '' : '/'}${path}`
 }
 
 export function isImageFile(filename: string): boolean {
