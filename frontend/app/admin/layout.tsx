@@ -16,7 +16,7 @@ const NAV_ITEMS = [
   { href: '/admin/chat', label: 'Team Chat', icon: '💬', module: 'comms' },
   { href: '/admin/hse', label: 'Health & Safety', icon: '🛡️', module: 'compliance' },
   { href: '/admin/documents', label: 'Documents', icon: '📁', module: 'documents' },
-  { href: '/admin/analytics', label: 'Analytics', icon: '📈', module: 'analytics' },
+  { href: '/admin/analytics', label: 'Business Insights', icon: '📈', module: 'analytics' },
   { href: '/admin/audit', label: 'Audit Log', icon: '🔍', module: '_always' },
   { href: '/admin/settings', label: 'Settings', icon: '⚙️', module: '_always' },
 ]
