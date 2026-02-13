@@ -232,6 +232,33 @@ def tag_create(request):
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def seed_vault(request):
+    """Trigger the document vault seed (admin only)."""
+    from django.core.management import call_command
+    from io import StringIO
+    out = StringIO()
+    err = StringIO()
+    try:
+        call_command('seed_document_vault', stdout=out, stderr=err)
+        return Response({
+            'status': 'ok',
+            'stdout': out.getvalue(),
+            'stderr': err.getvalue(),
+            'total': Document.objects.count(),
+        })
+    except Exception as e:
+        import traceback
+        return Response({
+            'status': 'error',
+            'error': str(e),
+            'traceback': traceback.format_exc(),
+            'stdout': out.getvalue(),
+            'stderr': err.getvalue(),
+        }, status=500)
+
+
 def models_Q_valid(today):
     """Helper: Q filter for valid (non-expired, non-placeholder) documents."""
     from django.db.models import Q
