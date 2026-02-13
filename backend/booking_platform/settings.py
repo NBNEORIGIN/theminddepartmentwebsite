@@ -172,6 +172,7 @@ if R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY and R2_ENDPOINT_URL:
                 "file_overwrite": False,
                 "signature_version": "s3v4",
                 "addressing_style": "path",
+                "verify": False,
                 "custom_domain": R2_PUBLIC_URL.replace('https://', '').replace('http://', '').rstrip('/') if R2_PUBLIC_URL else None,
             },
         },
