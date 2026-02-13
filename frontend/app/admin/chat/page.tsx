@@ -27,21 +27,29 @@ export default function AdminChatPage() {
   // Auto-create / load the General channel
   const init = useCallback(async () => {
     setLoading(true)
+    setError('')
     // Try to ensure general channel exists
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('nbne_access') : null
       const base = process.env.NEXT_PUBLIC_API_BASE || 'https://theminddepartment-api.fly.dev/api'
-      await fetch(`${base}/comms/ensure-general/`, {
+      const ensureRes = await fetch(`${base}/comms/ensure-general/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       })
-    } catch {}
+      if (!ensureRes.ok) {
+        console.warn('ensure-general failed:', ensureRes.status)
+      }
+    } catch (e) {
+      console.warn('ensure-general error:', e)
+    }
     const r = await getChannels()
     const chs = r.data || []
     if (chs.length > 0) {
       setChannel(chs[0])
+    } else if (r.error) {
+      setError(`Chat service unavailable — the backend may be redeploying. ${r.error}`)
     } else {
-      setError('No chat channel available.')
+      setError('Chat is being set up. Please try again in a moment.')
     }
     setLoading(false)
   }, [])
@@ -135,7 +143,16 @@ export default function AdminChatPage() {
   const dateSepStyle: React.CSSProperties = { textAlign: 'center', padding: '0.5rem 0', fontSize: '0.65rem', color: C.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }
 
   if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: C.muted }}><div style={{ textAlign: 'center' }}><div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>💬</div><div>Loading chat…</div></div></div>
-  if (error) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: C.red }}>{error}</div>
+  if (error) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: C.muted }}>
+      <div style={{ textAlign: 'center', maxWidth: 400 }}>
+        <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>💬</div>
+        <div style={{ fontWeight: 600, color: C.text, marginBottom: 6 }}>Team Chat</div>
+        <div style={{ fontSize: '0.85rem', marginBottom: '1rem' }}>{error}</div>
+        <button onClick={() => init()} style={{ padding: '0.5rem 1.5rem', borderRadius: 8, border: 'none', background: C.accent, color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem' }}>Retry</button>
+      </div>
+    </div>
+  )
 
   let lastDateKey = ''
 
