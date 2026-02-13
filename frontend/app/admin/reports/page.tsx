@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { getReportsOverview, getReportsDaily, getReportsMonthly, getReportsStaff, getReportsInsights, getStaffList, getServices, seedDemoData, deleteDemoData, getDemoStatus } from '@/lib/api'
+import { getReportsOverview, getReportsDaily, getReportsMonthly, getReportsStaff, getReportsInsights, getReportsStaffHours, getStaffHoursCsvUrl, getStaffList, getServices, seedDemoData, deleteDemoData, getDemoStatus } from '@/lib/api'
 
 /* ================================================================
    REPORTS — Intelligence Dashboard (Dark Theme)
@@ -21,7 +21,7 @@ function todayStr() { return new Date().toISOString().slice(0, 10) }
 function daysAgo(n: number) { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10) }
 function pctClr(v: number, hi = 80, med = 40) { return v >= hi ? CLR.green : v >= med ? CLR.amber : CLR.red }
 
-type Tab = 'overview' | 'daily' | 'monthly' | 'staff'
+type Tab = 'overview' | 'daily' | 'monthly' | 'staff' | 'hours'
 type Filters = { date_from: string; date_to: string; staff_id?: number; service_id?: number; risk_level?: string; payment_status?: string }
 
 export default function AdminReportsPage() {
@@ -31,6 +31,8 @@ export default function AdminReportsPage() {
   const [daily, setDaily] = useState<any>(null)
   const [monthly, setMonthly] = useState<any>(null)
   const [staffData, setStaffData] = useState<any>(null)
+  const [hoursData, setHoursData] = useState<any>(null)
+  const [hoursMonth, setHoursMonth] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` })
   const [insights, setInsights] = useState<any>(null)
   const [staffList, setStaffList] = useState<any[]>([])
   const [serviceList, setServiceList] = useState<any[]>([])
@@ -55,8 +57,9 @@ export default function AdminReportsPage() {
     else if (tab === 'daily') { const r = await getReportsDaily(p); setDaily(r.data) }
     else if (tab === 'monthly') { const r = await getReportsMonthly(p); setMonthly(r.data) }
     else if (tab === 'staff') { const r = await getReportsStaff(p); setStaffData(r.data) }
+    else if (tab === 'hours') { const r = await getReportsStaffHours({ month: hoursMonth }); setHoursData(r.data) }
     setLoading(false)
-  }, [tab, filters])
+  }, [tab, filters, hoursMonth])
 
   useEffect(() => { fetchTab() }, [fetchTab])
 
@@ -94,6 +97,7 @@ export default function AdminReportsPage() {
     { key: 'daily', label: 'Daily Takings' },
     { key: 'monthly', label: 'Monthly' },
     { key: 'staff', label: 'Per Staff' },
+    { key: 'hours', label: 'Staff Hours' },
   ]
 
   const isEmpty = !loading && tab === 'overview' && (!overview || (kpi.total_bookings || 0) === 0)
@@ -361,6 +365,94 @@ export default function AdminReportsPage() {
               })()}
             </div>
           )}
+
+          {/* ═══════════ STAFF HOURS TAB ═══════════ */}
+          {tab === 'hours' && hoursData && (() => {
+            const staff = hoursData.staff || []
+            const totals = hoursData.totals || {}
+            return (
+              <div>
+                {/* Month picker + CSV buttons */}
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1rem' }}>
+                  <input type="month" value={hoursMonth} onChange={e => setHoursMonth(e.target.value)} style={{ ...inputStyle, maxWidth: 180 }} />
+                  <a href={getStaffHoursCsvUrl({ month: hoursMonth })} download style={{ ...btnPrimary, ...btnSm, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    ↓ Download CSV (Summary)
+                  </a>
+                  <a href={getStaffHoursCsvUrl({ month: hoursMonth, detail: true })} download style={{ ...btnGhost, ...btnSm, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    ↓ CSV (Daily Detail)
+                  </a>
+                </div>
+
+                {/* KPI Row */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <KpiCard label="Scheduled" value={`${totals.scheduled_hours || 0}h`} color={CLR.blue} />
+                  <KpiCard label="Actual" value={`${totals.actual_hours || 0}h`} color={CLR.green} />
+                  <KpiCard label="Overtime" value={`${totals.overtime_hours || 0}h`} color={CLR.amber} />
+                  <KpiCard label="Variance" value={`${totals.variance_hours > 0 ? '+' : ''}${totals.variance_hours || 0}h`} color={(totals.variance_hours || 0) >= 0 ? CLR.green : CLR.red} />
+                  <KpiCard label="Staff" value={String(totals.staff_count || 0)} color={CLR.primary} />
+                </div>
+
+                {/* Bar chart */}
+                {staff.length > 0 && (
+                  <div style={{ background: CLR.card, borderRadius: 16, padding: '1.5rem', marginBottom: '1rem' }}>
+                    <CardTitle>Actual Hours per Staff</CardTitle>
+                    <HBarChart data={staff.map((r: any) => ({ label: r.staff_name, value: r.actual_hours }))} color={CLR.green} />
+                  </div>
+                )}
+
+                {/* Table */}
+                <div style={{ background: CLR.card, borderRadius: 16, padding: '1.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <CardTitle>Staff Hours — {hoursData.month}</CardTitle>
+                  </div>
+                  <div style={{ overflow: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead><tr>
+                        <th style={thStyle}>Staff</th>
+                        <th style={{ ...thStyle, textAlign: 'right' }}>Scheduled</th>
+                        <th style={{ ...thStyle, textAlign: 'right' }}>Actual</th>
+                        <th style={{ ...thStyle, textAlign: 'right' }}>Overtime</th>
+                        <th style={{ ...thStyle, textAlign: 'right' }}>Variance</th>
+                        <th style={{ ...thStyle, textAlign: 'right' }}>Days Worked</th>
+                        <th style={{ ...thStyle, textAlign: 'right' }}>Days Absent</th>
+                      </tr></thead>
+                      <tbody>
+                        {staff.map((r: any) => (
+                          <tr key={r.staff_id}>
+                            <td style={{ ...tdStyle, fontWeight: 600 }}>{r.staff_name}</td>
+                            <td style={{ ...tdStyle, textAlign: 'right' }}>{r.scheduled_hours}h</td>
+                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{r.actual_hours}h</td>
+                            <td style={{ ...tdStyle, textAlign: 'right', color: r.overtime_hours > 0 ? CLR.amber : CLR.muted }}>{r.overtime_hours}h</td>
+                            <td style={{ ...tdStyle, textAlign: 'right', color: r.variance_hours >= 0 ? CLR.green : CLR.red, fontWeight: 600 }}>
+                              {r.variance_hours > 0 ? '+' : ''}{r.variance_hours}h
+                            </td>
+                            <td style={{ ...tdStyle, textAlign: 'right' }}>{r.days_worked}</td>
+                            <td style={{ ...tdStyle, textAlign: 'right', color: r.days_absent > 0 ? CLR.red : CLR.muted }}>{r.days_absent}</td>
+                          </tr>
+                        ))}
+                        {staff.length === 0 && (
+                          <tr><td colSpan={7} style={{ ...tdStyle, textAlign: 'center', color: CLR.muted, padding: '2rem' }}>No timesheet data for this month. Generate timesheets from the Staff page first.</td></tr>
+                        )}
+                        {staff.length > 0 && (
+                          <tr style={{ background: CLR.bg }}>
+                            <td style={{ ...tdStyle, fontWeight: 700 }}>TOTAL</td>
+                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 700 }}>{totals.scheduled_hours}h</td>
+                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 700 }}>{totals.actual_hours}h</td>
+                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 700, color: CLR.amber }}>{totals.overtime_hours}h</td>
+                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 700, color: totals.variance_hours >= 0 ? CLR.green : CLR.red }}>
+                              {totals.variance_hours > 0 ? '+' : ''}{totals.variance_hours}h
+                            </td>
+                            <td style={tdStyle} />
+                            <td style={tdStyle} />
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* ═══════════ STAFF TAB ═══════════ */}
           {tab === 'staff' && staffData && (

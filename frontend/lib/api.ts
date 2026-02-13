@@ -355,6 +355,23 @@ export async function getReportsInsights() {
   return apiFetch<any>('/reports/insights/')
 }
 
+export async function getReportsStaffHours(params?: { month?: string; staff_id?: number }) {
+  const qs = new URLSearchParams()
+  if (params?.month) qs.set('month', params.month)
+  if (params?.staff_id) qs.set('staff_id', String(params.staff_id))
+  const q = qs.toString()
+  return apiFetch<any>(`/reports/staff-hours/${q ? '?' + q : ''}`)
+}
+
+export function getStaffHoursCsvUrl(params?: { month?: string; staff_id?: number; detail?: boolean }) {
+  const qs = new URLSearchParams()
+  if (params?.month) qs.set('month', params.month)
+  if (params?.staff_id) qs.set('staff_id', String(params.staff_id))
+  if (params?.detail) qs.set('detail', '1')
+  const q = qs.toString()
+  return `/api/django/reports/staff-hours/csv/${q ? '?' + q : ''}`
+}
+
 // --- Demo Data ---
 export async function getDemoStatus() {
   return apiFetch<{ has_demo: boolean; has_real: boolean; demo_count: number }>('/demo/status/')

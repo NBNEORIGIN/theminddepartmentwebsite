@@ -43,6 +43,12 @@ interface DashData {
   owner_actions: { severity: string; message: string; link: string; booking_id?: number }[]
   total_upcoming_bookings: number
   average_reliability_score: number
+  staff_hours_this_month: {
+    month: string
+    total_scheduled: number
+    total_actual: number
+    staff: { staff_id: number; staff_name: string; scheduled_hours: number; actual_hours: number }[]
+  }
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -406,6 +412,72 @@ function ActionPanel({ actions }: { actions: DashData['owner_actions'] }) {
 }
 
 // ════════════════════════════════════════════════════════════════
+// STAFF HOURS THIS MONTH
+// ════════════════════════════════════════════════════════════════
+function StaffHoursCard({ data }: { data: DashData['staff_hours_this_month'] }) {
+  if (!data || data.staff.length === 0) return null
+  const monthLabel = data.month ? new Date(data.month + '-01').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : 'This Month'
+
+  return (
+    <div style={{ background: C.card, borderRadius: 16, padding: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+        <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: C.muted, fontWeight: 600 }}>
+          Staff Hours — {monthLabel}
+        </div>
+        <a href="/admin/reports" style={{ fontSize: '0.7rem', color: C.accent, textDecoration: 'none', fontWeight: 600 }}>
+          View Full Report →
+        </a>
+      </div>
+
+      {/* Summary KPIs */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', marginBottom: '1rem' }}>
+        <div style={{ background: C.bg, borderRadius: 10, padding: '0.75rem', textAlign: 'center' }}>
+          <div style={{ fontSize: '1.3rem', fontWeight: 800, color: C.text }}>{data.total_scheduled}h</div>
+          <div style={{ fontSize: '0.65rem', color: C.muted, textTransform: 'uppercase' }}>Scheduled</div>
+        </div>
+        <div style={{ background: C.bg, borderRadius: 10, padding: '0.75rem', textAlign: 'center' }}>
+          <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#22c55e' }}>{data.total_actual}h</div>
+          <div style={{ fontSize: '0.65rem', color: C.muted, textTransform: 'uppercase' }}>Actual</div>
+        </div>
+        <div style={{ background: C.bg, borderRadius: 10, padding: '0.75rem', textAlign: 'center' }}>
+          <div style={{ fontSize: '1.3rem', fontWeight: 800, color: C.text }}>{data.staff.length}</div>
+          <div style={{ fontSize: '0.65rem', color: C.muted, textTransform: 'uppercase' }}>Staff</div>
+        </div>
+      </div>
+
+      {/* Per-staff bars */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        {data.staff.map(s => {
+          const maxH = Math.max(data.total_scheduled, data.total_actual, 1)
+          const scheduledW = Math.max(2, (s.scheduled_hours / maxH) * 100)
+          const actualW = Math.max(2, (s.actual_hours / maxH) * 100)
+          const variance = s.actual_hours - s.scheduled_hours
+          return (
+            <div key={s.staff_id}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: C.text }}>{s.staff_name}</div>
+                <div style={{ fontSize: '0.75rem', color: C.muted }}>
+                  {s.actual_hours}h / {s.scheduled_hours}h
+                  {variance !== 0 && (
+                    <span style={{ marginLeft: 4, color: variance > 0 ? '#22c55e' : '#ef4444', fontWeight: 600 }}>
+                      ({variance > 0 ? '+' : ''}{variance.toFixed(1)})
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div style={{ position: 'relative', height: 8, background: C.bg, borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', height: '100%', width: `${scheduledW}%`, background: C.cardAlt, borderRadius: 4 }} />
+                <div style={{ position: 'absolute', height: '100%', width: `${actualW}%`, background: '#22c55e', borderRadius: 4, opacity: 0.8 }} />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ════════════════════════════════════════════════════════════════
 // HERO STATS ROW
 // ════════════════════════════════════════════════════════════════
 function HeroStats({ data }: { data: DashData }) {
@@ -492,6 +564,9 @@ export default function AdminDashboard() {
 
           {/* Phase 4: Risk Stack */}
           <RiskStack data={data.revenue_breakdown} />
+
+          {/* Staff Hours This Month */}
+          {data.staff_hours_this_month && <StaffHoursCard data={data.staff_hours_this_month} />}
 
           {/* Phase 2: Reliability Quadrant */}
           <ReliabilityQuadrant clients={data.client_quadrant} />

@@ -5,10 +5,15 @@ GET /api/reports/daily/
 GET /api/reports/monthly/
 GET /api/reports/staff/
 GET /api/reports/insights/
+GET /api/reports/staff-hours/
+GET /api/reports/staff-hours/csv/
 """
+import csv
 from datetime import timedelta, date
 from decimal import Decimal
 from collections import defaultdict
+from io import StringIO
+from django.http import HttpResponse
 from django.utils import timezone
 from django.db.models import Sum, Count, Avg, Q, F, FloatField
 from django.db.models.functions import TruncDate, TruncMonth, ExtractHour, ExtractWeekDay
@@ -16,6 +21,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from .models import Booking, Client, Service, Staff
+from .models_availability import TimesheetEntry
 
 
 def _parse_date(s, default=None):
@@ -445,3 +451,184 @@ def reports_insights(request):
         'insights': insights[:8],
         'actions': actions[:6],
     })
+
+
+# ════════════════════════════════════════════════════════════════
+# Staff Hours — Monthly per-staff hours summary (real-time)
+# ════════════════════════════════════════════════════════════════
+
+def _staff_hours_data(request):
+    """Build per-staff monthly hours data from TimesheetEntry records."""
+    now = timezone.now()
+    # Default: current month
+    month_str = request.query_params.get('month')  # YYYY-MM
+    if month_str:
+        try:
+            parts = month_str.split('-')
+            year, month = int(parts[0]), int(parts[1])
+            month_start = date(year, month, 1)
+        except Exception:
+            month_start = date(now.year, now.month, 1)
+    else:
+        month_start = date(now.year, now.month, 1)
+
+    # Calculate month end
+    if month_start.month == 12:
+        month_end = date(month_start.year + 1, 1, 1) - timedelta(days=1)
+    else:
+        month_end = date(month_start.year, month_start.month + 1, 1) - timedelta(days=1)
+
+    qs = TimesheetEntry.objects.filter(
+        date__gte=month_start,
+        date__lte=month_end,
+    ).select_related('staff_member')
+
+    # Exclude demo data
+    include_demo = request.query_params.get('include_demo', '').lower() in ('1', 'true')
+    if not include_demo:
+        qs = qs.exclude(notes__contains='avail-demo')
+
+    staff_filter = request.query_params.get('staff_id')
+    if staff_filter:
+        qs = qs.filter(staff_member_id=staff_filter)
+
+    # Build per-staff summary
+    staff_map = {}
+    for entry in qs:
+        sid = entry.staff_member_id
+        if sid not in staff_map:
+            staff_map[sid] = {
+                'staff_id': sid,
+                'staff_name': entry.staff_member.name,
+                'scheduled_hours': 0,
+                'actual_hours': 0,
+                'days_worked': 0,
+                'days_absent': 0,
+                'overtime_hours': 0,
+                'entries': [],
+            }
+        row = staff_map[sid]
+        sh = entry.scheduled_hours or 0
+        ah = entry.actual_hours or 0
+        row['scheduled_hours'] += sh
+        row['actual_hours'] += ah
+        if ah > 0:
+            row['days_worked'] += 1
+        elif sh > 0 and ah == 0:
+            row['days_absent'] += 1
+        if ah > sh and sh > 0:
+            row['overtime_hours'] += round(ah - sh, 2)
+        row['entries'].append({
+            'date': entry.date.isoformat(),
+            'scheduled_hours': sh,
+            'actual_hours': ah,
+            'break_minutes': entry.break_minutes,
+            'status': entry.status,
+            'variance': entry.variance or 0,
+        })
+
+    rows = sorted(staff_map.values(), key=lambda r: r['staff_name'])
+    for r in rows:
+        r['scheduled_hours'] = round(r['scheduled_hours'], 2)
+        r['actual_hours'] = round(r['actual_hours'], 2)
+        r['overtime_hours'] = round(r['overtime_hours'], 2)
+        r['variance_hours'] = round(r['actual_hours'] - r['scheduled_hours'], 2)
+
+    # Totals
+    total_scheduled = round(sum(r['scheduled_hours'] for r in rows), 2)
+    total_actual = round(sum(r['actual_hours'] for r in rows), 2)
+    total_overtime = round(sum(r['overtime_hours'] for r in rows), 2)
+
+    return {
+        'month': month_start.strftime('%Y-%m'),
+        'month_start': month_start.isoformat(),
+        'month_end': month_end.isoformat(),
+        'totals': {
+            'scheduled_hours': total_scheduled,
+            'actual_hours': total_actual,
+            'overtime_hours': total_overtime,
+            'variance_hours': round(total_actual - total_scheduled, 2),
+            'staff_count': len(rows),
+        },
+        'staff': rows,
+    }
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def reports_staff_hours(request):
+    """GET /api/reports/staff-hours/ — Monthly per-staff hours summary"""
+    data = _staff_hours_data(request)
+    # Strip daily entries from JSON response (keep it lightweight)
+    for r in data['staff']:
+        del r['entries']
+    return Response(data)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def reports_staff_hours_csv(request):
+    """GET /api/reports/staff-hours/csv/ — Download monthly staff hours as CSV for payroll"""
+    data = _staff_hours_data(request)
+    month_label = data['month']
+
+    output = StringIO()
+    writer = csv.writer(output)
+
+    # Summary mode (default) — one row per staff
+    detail = request.query_params.get('detail', '').lower() in ('1', 'true')
+
+    if detail:
+        # Detailed: one row per staff per day
+        writer.writerow([
+            'Month', 'Staff Name', 'Date', 'Scheduled Hours',
+            'Actual Hours', 'Break (min)', 'Overtime', 'Variance', 'Status',
+        ])
+        for staff_row in data['staff']:
+            for entry in staff_row['entries']:
+                sh = entry['scheduled_hours']
+                ah = entry['actual_hours']
+                ot = round(max(0, ah - sh), 2) if sh > 0 else 0
+                writer.writerow([
+                    month_label,
+                    staff_row['staff_name'],
+                    entry['date'],
+                    f"{sh:.2f}",
+                    f"{ah:.2f}",
+                    entry['break_minutes'],
+                    f"{ot:.2f}",
+                    f"{entry['variance']:.2f}",
+                    entry['status'],
+                ])
+    else:
+        # Summary: one row per staff
+        writer.writerow([
+            'Month', 'Staff Name', 'Scheduled Hours', 'Actual Hours',
+            'Overtime Hours', 'Variance Hours', 'Days Worked', 'Days Absent',
+        ])
+        for staff_row in data['staff']:
+            writer.writerow([
+                month_label,
+                staff_row['staff_name'],
+                f"{staff_row['scheduled_hours']:.2f}",
+                f"{staff_row['actual_hours']:.2f}",
+                f"{staff_row['overtime_hours']:.2f}",
+                f"{staff_row['variance_hours']:.2f}",
+                staff_row['days_worked'],
+                staff_row['days_absent'],
+            ])
+
+        # Totals row
+        writer.writerow([])
+        writer.writerow([
+            '', 'TOTAL',
+            f"{data['totals']['scheduled_hours']:.2f}",
+            f"{data['totals']['actual_hours']:.2f}",
+            f"{data['totals']['overtime_hours']:.2f}",
+            f"{data['totals']['variance_hours']:.2f}",
+            '', '',
+        ])
+
+    response = HttpResponse(output.getvalue(), content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="staff-hours-{month_label}.csv"'
+    return response

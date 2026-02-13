@@ -11,6 +11,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from .models import Booking, Client, Service
+from .models_availability import TimesheetEntry
 
 
 @api_view(['POST'])
@@ -281,6 +282,35 @@ def dashboard_summary(request):
     # Owner actions
     owner_actions = _generate_owner_actions(today_start, today_end)
 
+    # Staff hours this month (real-time from timesheets)
+    from datetime import date as dt_date
+    month_start = dt_date(now.year, now.month, 1)
+    ts_qs = TimesheetEntry.objects.filter(
+        date__gte=month_start,
+        date__lte=now.date(),
+    ).exclude(notes__contains='avail-demo').select_related('staff_member')
+
+    staff_hours = {}
+    for entry in ts_qs:
+        sid = entry.staff_member_id
+        if sid not in staff_hours:
+            staff_hours[sid] = {
+                'staff_id': sid,
+                'staff_name': entry.staff_member.name,
+                'scheduled_hours': 0,
+                'actual_hours': 0,
+            }
+        staff_hours[sid]['scheduled_hours'] += entry.scheduled_hours or 0
+        staff_hours[sid]['actual_hours'] += entry.actual_hours or 0
+
+    staff_hours_list = sorted(staff_hours.values(), key=lambda r: r['staff_name'])
+    for r in staff_hours_list:
+        r['scheduled_hours'] = round(r['scheduled_hours'], 1)
+        r['actual_hours'] = round(r['actual_hours'], 1)
+
+    total_scheduled = round(sum(r['scheduled_hours'] for r in staff_hours_list), 1)
+    total_actual = round(sum(r['actual_hours'] for r in staff_hours_list), 1)
+
     return Response({
         'revenue_today': revenue_today,
         'revenue_next_7_days': revenue['total'],
@@ -292,4 +322,10 @@ def dashboard_summary(request):
         'owner_actions': owner_actions,
         'total_upcoming_bookings': total_upcoming,
         'average_reliability_score': round(float(avg_reliability), 1),
+        'staff_hours_this_month': {
+            'month': month_start.strftime('%Y-%m'),
+            'total_scheduled': total_scheduled,
+            'total_actual': total_actual,
+            'staff': staff_hours_list,
+        },
     })
