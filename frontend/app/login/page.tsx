@@ -107,7 +107,11 @@ function LoginForm() {
             </div>
           )}
 
-          <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
+          <p style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.85rem' }}>
+            <a href="/forgot-password" style={{ color: 'var(--color-primary)' }}>Forgot your password?</a>
+          </p>
+
+          <p style={{ textAlign: 'center', marginTop: '0.75rem', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
             <a href="/">← Back to public site</a>
           </p>
         </form>

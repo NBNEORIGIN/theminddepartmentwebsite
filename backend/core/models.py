@@ -1,5 +1,7 @@
 from django.db import models
 
+from .models_auth import PasswordToken  # noqa: F401
+
 
 class Config(models.Model):
     """Configuration key-value store for branding and feature flags"""

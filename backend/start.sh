@@ -13,6 +13,9 @@ python manage.py setup_production
 echo "Seeding UK compliance baseline..."
 python manage.py seed_compliance
 
+echo "Ensuring owner account for Aly Harwood..."
+python manage.py invite_owner --email contact@theminddepartment.com --name "Aly Harwood" --resend || echo "WARNING: invite_owner failed (non-fatal)"
+
 echo "Seeding Document Vault..."
 python manage.py seed_document_vault || echo "WARNING: seed_document_vault failed (non-fatal)"
 

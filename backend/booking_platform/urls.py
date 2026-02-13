@@ -38,7 +38,7 @@ from bookings.views_availability import (
     BlockedTimeViewSet, ShiftViewSet, TimesheetEntryViewSet,
     staff_availability_view, staff_free_slots_view,
 )
-from core.auth_views import login_view, me_view, set_password_view
+from core.auth_views import login_view, me_view, set_password_view, request_password_reset_view, validate_token_view, set_password_with_token_view, send_invite_view
 
 router = DefaultRouter()
 router.register(r'services', ServiceViewSet, basename='service')
@@ -70,6 +70,10 @@ urlpatterns = [
     path('api/auth/login/', login_view, name='auth-login'),
     path('api/auth/me/', me_view, name='auth-me'),
     path('api/auth/me/set-password/', set_password_view, name='auth-set-password'),
+    path('api/auth/password-reset/', request_password_reset_view, name='auth-password-reset'),
+    path('api/auth/validate-token/', validate_token_view, name='auth-validate-token'),
+    path('api/auth/set-password-token/', set_password_with_token_view, name='auth-set-password-token'),
+    path('api/auth/invite/', send_invite_view, name='auth-invite'),
     # Tenant/branding alias (frontend expects /api/tenant/branding/)
     path('api/tenant/branding/', include('core.api_urls_branding')),
     path('api/tenant/', include('core.api_urls_tenant')),
