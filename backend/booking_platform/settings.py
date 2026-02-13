@@ -197,6 +197,15 @@ EMAIL_TIMEOUT = 5  # 5 second timeout
 RESEND_API_KEY = config('RESEND_API_KEY', default='')
 RESEND_FROM_EMAIL = config('RESEND_FROM_EMAIL', default='onboarding@resend.dev')
 
+# Booking reminder email (separate SMTP credentials via IONOS)
+REMINDER_EMAIL_HOST = config('REMINDER_EMAIL_HOST', default='smtp.ionos.co.uk')
+REMINDER_EMAIL_PORT = config('REMINDER_EMAIL_PORT', default=465, cast=int)
+REMINDER_EMAIL_USE_SSL = config('REMINDER_EMAIL_USE_SSL', default=True, cast=bool)
+REMINDER_EMAIL_HOST_USER = config('REMINDER_EMAIL_HOST_USER', default='minddept.bookings@nbne.uk')
+REMINDER_EMAIL_HOST_PASSWORD = config('REMINDER_EMAIL_HOST_PASSWORD', default='')
+REMINDER_FROM_EMAIL = config('REMINDER_FROM_EMAIL', default='minddept.bookings@nbne.uk')
+REMINDER_INTERVAL_MINUTES = config('REMINDER_INTERVAL_MINUTES', default=10, cast=int)
+
 # Stripe payments
 STRIPE_SECRET_KEY = config('STRIPE_SECRET_KEY', default='')
 STRIPE_WEBHOOK_SECRET = config('STRIPE_WEBHOOK_SECRET', default='')

@@ -249,6 +249,10 @@ class Booking(models.Model):
     data_origin = models.CharField(max_length=4, choices=DATA_ORIGIN_CHOICES, default='REAL', db_index=True)
     demo_seed_id = models.UUIDField(null=True, blank=True, db_index=True)
 
+    # Email reminder tracking
+    reminder_sent_24h = models.BooleanField(default=False, help_text='24-hour reminder email sent')
+    reminder_sent_1h = models.BooleanField(default=False, help_text='1-hour reminder email sent')
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
