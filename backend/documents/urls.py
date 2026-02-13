@@ -12,4 +12,5 @@ urlpatterns = [
     path('tags/create/', views.tag_create, name='tag_create'),
     path('<int:doc_id>/', views.document_detail, name='document_detail'),
     path('seed/', views.seed_vault, name='seed_vault'),
+    path('storage-debug/', views.storage_debug, name='storage_debug'),
 ]

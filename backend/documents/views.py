@@ -259,6 +259,36 @@ def seed_vault(request):
         }, status=500)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def storage_debug(request):
+    """Debug endpoint to check storage configuration."""
+    from django.conf import settings
+    from django.core.files.storage import default_storage
+    info = {
+        'storage_backend': default_storage.__class__.__name__,
+        'media_url': settings.MEDIA_URL,
+        'has_r2_keys': bool(getattr(settings, 'R2_ACCESS_KEY_ID', '')),
+        'r2_endpoint': getattr(settings, 'R2_ENDPOINT_URL', 'not set'),
+        'r2_bucket': getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'not set'),
+        'r2_public_url': getattr(settings, 'R2_PUBLIC_URL', 'not set'),
+        'aws_custom_domain': getattr(settings, 'AWS_S3_CUSTOM_DOMAIN', 'not set'),
+    }
+    # Try a small write test
+    try:
+        from django.core.files.base import ContentFile
+        path = default_storage.save('_test_r2.txt', ContentFile(b'hello r2'))
+        url = default_storage.url(path)
+        default_storage.delete(path)
+        info['write_test'] = 'OK'
+        info['test_url'] = url
+    except Exception as e:
+        import traceback
+        info['write_test'] = f'FAILED: {e}'
+        info['write_traceback'] = traceback.format_exc()
+    return Response(info)
+
+
 def models_Q_valid(today):
     """Helper: Q filter for valid (non-expired, non-placeholder) documents."""
     from django.db.models import Q
