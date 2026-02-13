@@ -11,7 +11,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from .models import Booking, Client, Service
-from .models_availability import TimesheetEntry
+from .models_availability import TimesheetEntry, LeaveRequest
 
 
 @api_view(['POST'])
@@ -311,6 +311,28 @@ def dashboard_summary(request):
     total_scheduled = round(sum(r['scheduled_hours'] for r in staff_hours_list), 1)
     total_actual = round(sum(r['actual_hours'] for r in staff_hours_list), 1)
 
+    # Leave this week (approved + requested, overlapping next 7 days)
+    leave_qs = LeaveRequest.objects.filter(
+        start_datetime__date__lte=week_end.date(),
+        end_datetime__date__gte=today_start.date(),
+        status__in=['APPROVED', 'REQUESTED'],
+    ).exclude(reason__contains='avail-demo').select_related('staff_member').order_by('start_datetime')
+
+    leave_this_week = []
+    for lv in leave_qs:
+        days = max(1, (lv.end_datetime.date() - lv.start_datetime.date()).days)
+        leave_this_week.append({
+            'id': lv.id,
+            'staff_id': lv.staff_member_id,
+            'staff_name': lv.staff_member.name,
+            'leave_type': lv.leave_type,
+            'start_date': lv.start_datetime.date().isoformat(),
+            'end_date': lv.end_datetime.date().isoformat(),
+            'days': days,
+            'status': lv.status,
+            'reason': lv.reason,
+        })
+
     return Response({
         'revenue_today': revenue_today,
         'revenue_next_7_days': revenue['total'],
@@ -328,4 +350,5 @@ def dashboard_summary(request):
             'total_actual': total_actual,
             'staff': staff_hours_list,
         },
+        'leave_this_week': leave_this_week,
     })

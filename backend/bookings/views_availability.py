@@ -164,6 +164,12 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
         leave_status = self.request.query_params.get('status')
         if leave_status:
             qs = qs.filter(status=leave_status)
+        date_from = self.request.query_params.get('date_from')
+        if date_from:
+            qs = qs.filter(end_datetime__date__gte=date_from)
+        date_to = self.request.query_params.get('date_to')
+        if date_to:
+            qs = qs.filter(start_datetime__date__lte=date_to)
         return qs
 
     @action(detail=True, methods=['post'])

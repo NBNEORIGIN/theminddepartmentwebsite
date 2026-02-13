@@ -49,6 +49,10 @@ interface DashData {
     total_actual: number
     staff: { staff_id: number; staff_name: string; scheduled_hours: number; actual_hours: number }[]
   }
+  leave_this_week: {
+    id: number; staff_id: number; staff_name: string; leave_type: string
+    start_date: string; end_date: string; days: number; status: string; reason: string
+  }[]
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -412,6 +416,50 @@ function ActionPanel({ actions }: { actions: DashData['owner_actions'] }) {
 }
 
 // ════════════════════════════════════════════════════════════════
+// LEAVE THIS WEEK
+// ════════════════════════════════════════════════════════════════
+function LeaveThisWeekCard({ data }: { data: DashData['leave_this_week'] }) {
+  if (!data || data.length === 0) return null
+  const typeColor: Record<string, string> = { ANNUAL: '#6366f1', SICK: '#ef4444', UNPAID: '#f59e0b', OTHER: '#94a3b8' }
+  const typeLabel: Record<string, string> = { ANNUAL: 'Annual', SICK: 'Sick', UNPAID: 'Unpaid', OTHER: 'Other' }
+
+  return (
+    <div style={{ background: C.card, borderRadius: 16, padding: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+        <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: C.muted, fontWeight: 600 }}>
+          Leave This Week
+        </div>
+        <a href="/admin/staff" style={{ fontSize: '0.7rem', color: C.accent, textDecoration: 'none', fontWeight: 600 }}>
+          Manage Leave →
+        </a>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        {data.map(lv => (
+          <div key={lv.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.75rem', background: C.bg, borderRadius: 8, borderLeft: `3px solid ${typeColor[lv.leave_type] || C.muted}` }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: C.text }}>{lv.staff_name}</div>
+              <div style={{ fontSize: '0.7rem', color: C.muted }}>
+                {new Date(lv.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                {lv.start_date !== lv.end_date && ` – ${new Date(lv.end_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
+                {' · '}{lv.days}d
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <span style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: 4, background: (typeColor[lv.leave_type] || C.muted) + '25', color: typeColor[lv.leave_type] || C.muted, fontWeight: 600 }}>
+                {typeLabel[lv.leave_type] || lv.leave_type}
+              </span>
+              <span style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: 4, background: lv.status === 'APPROVED' ? '#22c55e25' : '#f59e0b25', color: lv.status === 'APPROVED' ? '#22c55e' : '#f59e0b', fontWeight: 600 }}>
+                {lv.status}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ════════════════════════════════════════════════════════════════
 // STAFF HOURS THIS MONTH
 // ════════════════════════════════════════════════════════════════
 function StaffHoursCard({ data }: { data: DashData['staff_hours_this_month'] }) {
@@ -567,6 +615,9 @@ export default function AdminDashboard() {
 
           {/* Staff Hours This Month */}
           {data.staff_hours_this_month && <StaffHoursCard data={data.staff_hours_this_month} />}
+
+          {/* Leave This Week */}
+          {data.leave_this_week && data.leave_this_week.length > 0 && <LeaveThisWeekCard data={data.leave_this_week} />}
 
           {/* Phase 2: Reliability Quadrant */}
           <ReliabilityQuadrant clients={data.client_quadrant} />

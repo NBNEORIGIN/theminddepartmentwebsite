@@ -24,7 +24,7 @@ from bookings.views_intake import IntakeProfileViewSet, IntakeWellbeingDisclaime
 from bookings.views_payment import ClassPackageViewSet, ClientCreditViewSet, PaymentIntegrationViewSet
 from bookings.views_stripe import create_checkout_session, stripe_webhook
 from bookings.views_dashboard import dashboard_summary, backfill_sbe
-from bookings.views_reports import reports_overview, reports_daily, reports_monthly, reports_staff, reports_insights, reports_staff_hours, reports_staff_hours_csv
+from bookings.views_reports import reports_overview, reports_daily, reports_monthly, reports_staff, reports_insights, reports_staff_hours, reports_staff_hours_csv, reports_leave
 from bookings.views_demo import demo_seed_view, demo_status_view
 from bookings.views_demo_availability import demo_availability_seed_view
 from bookings.views_availability import (
@@ -84,6 +84,7 @@ urlpatterns = [
     path('api/reports/insights/', reports_insights, name='reports-insights'),
     path('api/reports/staff-hours/', reports_staff_hours, name='reports-staff-hours'),
     path('api/reports/staff-hours/csv/', reports_staff_hours_csv, name='reports-staff-hours-csv'),
+    path('api/reports/leave/', reports_leave, name='reports-leave'),
     # Demo data
     path('api/demo/seed/', demo_seed_view, name='demo-seed'),
     path('api/demo/status/', demo_status_view, name='demo-status'),

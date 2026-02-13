@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { getReportsOverview, getReportsDaily, getReportsMonthly, getReportsStaff, getReportsInsights, getReportsStaffHours, getStaffHoursCsvUrl, getStaffList, getServices, seedDemoData, deleteDemoData, getDemoStatus } from '@/lib/api'
+import { getReportsOverview, getReportsDaily, getReportsMonthly, getReportsStaff, getReportsInsights, getReportsStaffHours, getStaffHoursCsvUrl, getReportsLeave, getStaffList, getServices, seedDemoData, deleteDemoData, getDemoStatus } from '@/lib/api'
 
 /* ================================================================
    REPORTS — Intelligence Dashboard (Dark Theme)
@@ -21,7 +21,7 @@ function todayStr() { return new Date().toISOString().slice(0, 10) }
 function daysAgo(n: number) { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10) }
 function pctClr(v: number, hi = 80, med = 40) { return v >= hi ? CLR.green : v >= med ? CLR.amber : CLR.red }
 
-type Tab = 'overview' | 'daily' | 'monthly' | 'staff' | 'hours'
+type Tab = 'overview' | 'daily' | 'monthly' | 'staff' | 'hours' | 'leave'
 type Filters = { date_from: string; date_to: string; staff_id?: number; service_id?: number; risk_level?: string; payment_status?: string }
 
 export default function AdminReportsPage() {
@@ -33,6 +33,7 @@ export default function AdminReportsPage() {
   const [staffData, setStaffData] = useState<any>(null)
   const [hoursData, setHoursData] = useState<any>(null)
   const [hoursMonth, setHoursMonth] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` })
+  const [leaveData, setLeaveData] = useState<any>(null)
   const [insights, setInsights] = useState<any>(null)
   const [staffList, setStaffList] = useState<any[]>([])
   const [serviceList, setServiceList] = useState<any[]>([])
@@ -58,6 +59,7 @@ export default function AdminReportsPage() {
     else if (tab === 'monthly') { const r = await getReportsMonthly(p); setMonthly(r.data) }
     else if (tab === 'staff') { const r = await getReportsStaff(p); setStaffData(r.data) }
     else if (tab === 'hours') { const r = await getReportsStaffHours({ month: hoursMonth }); setHoursData(r.data) }
+    else if (tab === 'leave') { const r = await getReportsLeave(); setLeaveData(r.data) }
     setLoading(false)
   }, [tab, filters, hoursMonth])
 
@@ -98,6 +100,7 @@ export default function AdminReportsPage() {
     { key: 'monthly', label: 'Monthly' },
     { key: 'staff', label: 'Per Staff' },
     { key: 'hours', label: 'Staff Hours' },
+    { key: 'leave', label: 'Leave' },
   ]
 
   const isEmpty = !loading && tab === 'overview' && (!overview || (kpi.total_bookings || 0) === 0)
@@ -365,6 +368,75 @@ export default function AdminReportsPage() {
               })()}
             </div>
           )}
+
+          {/* ═══════════ LEAVE TAB ═══════════ */}
+          {tab === 'leave' && leaveData && (() => {
+            const monthly = leaveData.monthly || []
+            const staffRows = leaveData.staff || []
+            const totals = leaveData.totals || {}
+            const maxDays = Math.max(1, ...monthly.map((r: any) => r.total_days))
+            return (
+              <div>
+                {/* KPI Row */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <KpiCard label="Approved Days" value={String(totals.approved_days || 0)} color={CLR.green} />
+                  <KpiCard label="Pending" value={String(totals.pending_requests || 0)} color={CLR.amber} />
+                  <KpiCard label="Staff with Leave" value={String(totals.staff_count || 0)} color={CLR.blue} />
+                </div>
+
+                {/* Monthly bar chart */}
+                {monthly.length > 0 && (
+                  <div style={{ background: CLR.card, borderRadius: 16, padding: '1.5rem', marginBottom: '1rem' }}>
+                    <CardTitle>Leave Days per Month (Approved)</CardTitle>
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 140, marginTop: '0.75rem' }}>
+                      {monthly.map((r: any) => {
+                        const h = maxDays > 0 ? (r.total_days / maxDays) * 120 : 0
+                        return (
+                          <div key={r.month} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                            <div style={{ fontSize: '0.65rem', color: CLR.text, fontWeight: 600 }}>{r.total_days || ''}</div>
+                            <div style={{ width: '100%', maxWidth: 40, height: Math.max(2, h), background: CLR.green, borderRadius: '4px 4px 0 0', transition: 'height 0.3s' }} />
+                            <div style={{ fontSize: '0.55rem', color: CLR.muted, whiteSpace: 'nowrap' }}>{r.month.slice(5)}</div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    {/* Requested overlay */}
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.7rem', color: CLR.muted }}><div style={{ width: 8, height: 8, borderRadius: 2, background: CLR.green }} />Approved days</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Per-staff table */}
+                <div style={{ background: CLR.card, borderRadius: 16, padding: '1.5rem' }}>
+                  <CardTitle>Leave per Staff (Last 12 Months)</CardTitle>
+                  <div style={{ overflow: 'auto', marginTop: '0.75rem' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead><tr>
+                        <th style={thStyle}>Staff</th>
+                        <th style={{ ...thStyle, textAlign: 'right' }}>Approved Days</th>
+                        <th style={{ ...thStyle, textAlign: 'right' }}>Pending</th>
+                        <th style={{ ...thStyle, textAlign: 'right' }}>Total Requests</th>
+                      </tr></thead>
+                      <tbody>
+                        {staffRows.map((r: any) => (
+                          <tr key={r.staff_id}>
+                            <td style={{ ...tdStyle, fontWeight: 600 }}>{r.staff_name}</td>
+                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{r.approved_days}</td>
+                            <td style={{ ...tdStyle, textAlign: 'right', color: r.pending > 0 ? CLR.amber : CLR.muted }}>{r.pending}</td>
+                            <td style={{ ...tdStyle, textAlign: 'right' }}>{r.total_requests}</td>
+                          </tr>
+                        ))}
+                        {staffRows.length === 0 && (
+                          <tr><td colSpan={4} style={{ ...tdStyle, textAlign: 'center', color: CLR.muted, padding: '2rem' }}>No leave data yet</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* ═══════════ STAFF HOURS TAB ═══════════ */}
           {tab === 'hours' && hoursData && (() => {

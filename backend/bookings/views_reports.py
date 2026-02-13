@@ -632,3 +632,72 @@ def reports_staff_hours_csv(request):
     response = HttpResponse(output.getvalue(), content_type='text/csv')
     response['Content-Disposition'] = f'attachment; filename="staff-hours-{month_label}.csv"'
     return response
+
+
+# ════════════════════════════════════════════════════════════════
+# Leave Report — Monthly leave summary
+# ════════════════════════════════════════════════════════════════
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def reports_leave(request):
+    """GET /api/reports/leave/ — Monthly leave summary with per-staff breakdown"""
+    from .models_availability import LeaveRequest
+    now = timezone.now()
+
+    # Default: 12 months back
+    months_back = int(request.query_params.get('months', '12'))
+    start = date(now.year, now.month, 1) - timedelta(days=30 * months_back)
+
+    qs = LeaveRequest.objects.filter(
+        start_datetime__date__gte=start,
+    ).exclude(reason__contains='avail-demo').select_related('staff_member')
+
+    staff_filter = request.query_params.get('staff_id')
+    if staff_filter:
+        qs = qs.filter(staff_member_id=staff_filter)
+
+    # Monthly aggregation
+    from collections import defaultdict
+    monthly = defaultdict(lambda: {'approved': 0, 'requested': 0, 'rejected': 0, 'cancelled': 0, 'total_days': 0})
+    staff_summary = {}
+
+    for lv in qs:
+        month_key = lv.start_datetime.strftime('%Y-%m')
+        days = max(1, (lv.end_datetime.date() - lv.start_datetime.date()).days)
+        status_key = lv.status.lower()
+        if status_key in monthly[month_key]:
+            monthly[month_key][status_key] += 1
+        if lv.status == 'APPROVED':
+            monthly[month_key]['total_days'] += days
+
+        sid = lv.staff_member_id
+        if sid not in staff_summary:
+            staff_summary[sid] = {
+                'staff_id': sid,
+                'staff_name': lv.staff_member.name,
+                'approved_days': 0,
+                'pending': 0,
+                'total_requests': 0,
+            }
+        staff_summary[sid]['total_requests'] += 1
+        if lv.status == 'APPROVED':
+            staff_summary[sid]['approved_days'] += days
+        elif lv.status == 'REQUESTED':
+            staff_summary[sid]['pending'] += 1
+
+    monthly_rows = [{'month': k, **v} for k, v in sorted(monthly.items())]
+    staff_rows = sorted(staff_summary.values(), key=lambda r: r['staff_name'])
+
+    total_approved_days = sum(r['approved_days'] for r in staff_rows)
+    total_pending = sum(r['pending'] for r in staff_rows)
+
+    return Response({
+        'monthly': monthly_rows,
+        'staff': staff_rows,
+        'totals': {
+            'approved_days': total_approved_days,
+            'pending_requests': total_pending,
+            'staff_count': len(staff_rows),
+        },
+    })

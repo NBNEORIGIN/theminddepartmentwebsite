@@ -372,6 +372,14 @@ export function getStaffHoursCsvUrl(params?: { month?: string; staff_id?: number
   return `/api/django/reports/staff-hours/csv/${q ? '?' + q : ''}`
 }
 
+export async function getReportsLeave(params?: { staff_id?: number; months?: number }) {
+  const qs = new URLSearchParams()
+  if (params?.staff_id) qs.set('staff_id', String(params.staff_id))
+  if (params?.months) qs.set('months', String(params.months))
+  const q = qs.toString()
+  return apiFetch<any>(`/reports/leave/${q ? '?' + q : ''}`)
+}
+
 // --- Demo Data ---
 export async function getDemoStatus() {
   return apiFetch<{ has_demo: boolean; has_real: boolean; demo_count: number }>('/demo/status/')
@@ -531,10 +539,12 @@ export async function deleteAvailabilityOverride(id: number) {
   return apiFetch<any>(`/availability-overrides/${id}/`, { method: 'DELETE' })
 }
 
-export async function getLeaveRequestsAvail(params?: { staff?: number; status?: string }) {
+export async function getLeaveRequestsAvail(params?: { staff?: number; status?: string; date_from?: string; date_to?: string }) {
   const qs = new URLSearchParams()
   if (params?.staff) qs.set('staff', String(params.staff))
   if (params?.status) qs.set('status', params.status)
+  if (params?.date_from) qs.set('date_from', params.date_from)
+  if (params?.date_to) qs.set('date_to', params.date_to)
   const q = qs.toString()
   return apiFetch<any[]>(`/leave-requests/${q ? '?' + q : ''}`)
 }

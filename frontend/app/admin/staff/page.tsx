@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { getStaffList, getShifts, getLeaveRequests, getTrainingRecords, createStaff, updateStaff, deleteStaff, createShift, updateShift, deleteShift, getWorkingHours, bulkSetWorkingHours, getTimesheets, updateTimesheet, generateTimesheets } from '@/lib/api'
+import { getStaffList, getShifts, getLeaveRequests, getTrainingRecords, createStaff, updateStaff, deleteStaff, createShift, updateShift, deleteShift, getWorkingHours, bulkSetWorkingHours, getTimesheets, updateTimesheet, generateTimesheets, getLeaveRequestsAvail, createLeaveRequestAvail, approveLeaveRequest, rejectLeaveRequest, cancelLeaveRequest } from '@/lib/api'
 
 const C = {
   green: '#22c55e', amber: '#f59e0b', red: '#ef4444', blue: '#3b82f6',
@@ -57,6 +57,47 @@ export default function AdminStaffPage() {
   const [editingTs, setEditingTs] = useState<any | null>(null)
   const [tsForm, setTsForm] = useState({ actual_start: '', actual_end: '', actual_break_minutes: 0, status: '', notes: '' })
   const [tsSaving, setTsSaving] = useState(false)
+
+  // Leave calendar state
+  const [leaveCalData, setLeaveCalData] = useState<any[]>([])
+  const [leaveCalYear, setLeaveCalYear] = useState(new Date().getFullYear())
+  const [showLeaveForm, setShowLeaveForm] = useState(false)
+  const [leaveForm, setLeaveForm] = useState({ staff_member: '', leave_type: 'ANNUAL', start_date: '', end_date: '', reason: '' })
+  const [leaveSaving, setLeaveSaving] = useState(false)
+  const [leaveError, setLeaveError] = useState('')
+
+  const loadLeaveCalendar = async (year?: number) => {
+    const y = year || leaveCalYear
+    const res = await getLeaveRequestsAvail({ date_from: `${y}-01-01`, date_to: `${y}-12-31` })
+    if (res.data) setLeaveCalData(res.data)
+  }
+
+  const handleRequestLeave = async () => {
+    setLeaveError('')
+    if (!leaveForm.staff_member || !leaveForm.start_date || !leaveForm.end_date) { setLeaveError('Staff, start and end dates are required.'); return }
+    setLeaveSaving(true)
+    const res = await createLeaveRequestAvail({
+      staff_member: Number(leaveForm.staff_member),
+      leave_type: leaveForm.leave_type,
+      start_datetime: `${leaveForm.start_date}T00:00:00Z`,
+      end_datetime: `${leaveForm.end_date}T23:59:00Z`,
+      reason: leaveForm.reason,
+    })
+    if (res.error) { setLeaveError(res.error); setLeaveSaving(false); return }
+    setLeaveSaving(false)
+    setShowLeaveForm(false)
+    setLeaveForm({ staff_member: '', leave_type: 'ANNUAL', start_date: '', end_date: '', reason: '' })
+    loadLeaveCalendar()
+    loadData()
+  }
+
+  const handleLeaveAction = async (id: number, action: 'approve' | 'reject' | 'cancel') => {
+    if (action === 'approve') await approveLeaveRequest(id)
+    else if (action === 'reject') await rejectLeaveRequest(id)
+    else await cancelLeaveRequest(id)
+    loadLeaveCalendar()
+    loadData()
+  }
 
   const loadData = () => {
     setLoading(true)
@@ -325,7 +366,7 @@ export default function AdminStaffPage() {
 
       <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1.25rem', overflowX: 'auto', borderBottom: `2px solid ${C.border}30`, paddingBottom: '0.5rem' }}>
         {(['profiles', 'hours', 'timesheets', 'shifts', 'leave', 'training'] as const).map(t => (
-          <button key={t} onClick={() => { setTab(t); if (t === 'timesheets' && timesheets.length === 0) loadTimesheets() }} style={{
+          <button key={t} onClick={() => { setTab(t); if (t === 'timesheets' && timesheets.length === 0) loadTimesheets(); if (t === 'leave' && leaveCalData.length === 0) loadLeaveCalendar() }} style={{
             padding: '0.5rem 1rem', borderRadius: '8px 8px 0 0', border: 'none', cursor: 'pointer',
             background: tab === t ? C.accent : 'transparent', color: tab === t ? '#fff' : C.muted,
             fontWeight: tab === t ? 700 : 500, fontSize: '0.85rem', transition: 'all 0.15s', whiteSpace: 'nowrap',
@@ -544,19 +585,179 @@ export default function AdminStaffPage() {
         </>
       )}
 
-      {tab === 'leave' && (
-        <div style={{ background: C.card, borderRadius: 12, overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr><th style={thStyle}>Staff</th><th style={thStyle}>Type</th><th style={thStyle}>From</th><th style={thStyle}>To</th><th style={thStyle}>Days</th><th style={thStyle}>Reason</th><th style={thStyle}>Status</th></tr></thead>
-            <tbody>
-              {leave.map((l: any) => (
-                <tr key={l.id} onMouseEnter={e => (e.currentTarget.style.background = C.cardAlt)} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}><td style={{ ...tdStyle, fontWeight: 600 }}>{l.staff_name}</td><td style={tdStyle}>{l.leave_type}</td><td style={tdStyle}>{l.start_date}</td><td style={tdStyle}>{l.end_date}</td><td style={tdStyle}>{l.duration_days}</td><td style={{ ...tdStyle, maxWidth: 200 }}>{l.reason}</td><td style={tdStyle}><span style={badgeStyle(l.status === 'APPROVED' ? C.green : l.status === 'PENDING' ? C.amber : C.red)}>{l.status}</span></td></tr>
-              ))}
-              {leave.length === 0 && <tr><td colSpan={7} style={emptyStyle}>No leave requests</td></tr>}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {tab === 'leave' && (() => {
+        const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+        const statusColor: Record<string,string> = { APPROVED: C.green, REQUESTED: C.amber, REJECTED: C.red, CANCELLED: C.muted }
+        const typeLabel: Record<string,string> = { ANNUAL: 'Annual', SICK: 'Sick', UNPAID: 'Unpaid', OTHER: 'Other' }
+
+        // Build a set of dates with leave per staff for the calendar
+        const leaveDays: Record<string, { color: string; status: string; staffName: string; type: string }[]> = {}
+        for (const lv of leaveCalData) {
+          if (lv.status === 'CANCELLED' || lv.status === 'REJECTED') continue
+          const s = new Date(lv.start_datetime)
+          const e = new Date(lv.end_datetime)
+          const cur = new Date(s); cur.setHours(0,0,0,0)
+          const end = new Date(e); end.setHours(0,0,0,0)
+          while (cur <= end) {
+            const key = cur.toISOString().slice(0,10)
+            if (!leaveDays[key]) leaveDays[key] = []
+            leaveDays[key].push({ color: statusColor[lv.status] || C.muted, status: lv.status, staffName: lv.staff_name, type: lv.leave_type })
+            cur.setDate(cur.getDate() + 1)
+          }
+        }
+
+        return (
+          <div>
+            {/* Header: year nav + request button */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button style={{ ...btnGhost, ...btnSm }} onClick={() => { const y = leaveCalYear - 1; setLeaveCalYear(y); loadLeaveCalendar(y) }}>◀</button>
+                <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>{leaveCalYear}</span>
+                <button style={{ ...btnGhost, ...btnSm }} onClick={() => { const y = leaveCalYear + 1; setLeaveCalYear(y); loadLeaveCalendar(y) }}>▶</button>
+              </div>
+              <button style={btnPrimary} onClick={() => setShowLeaveForm(true)}>+ Request Leave</button>
+            </div>
+
+            {/* Legend */}
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.7rem', color: C.muted }}><div style={{ width: 10, height: 10, borderRadius: 2, background: C.green }} />Approved</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.7rem', color: C.muted }}><div style={{ width: 10, height: 10, borderRadius: 2, background: C.amber }} />Requested</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.7rem', color: C.muted }}><div style={{ width: 10, height: 10, borderRadius: 2, background: C.bg, border: `1px solid ${C.border}` }} />Available</div>
+            </div>
+
+            {/* Year calendar grid — 12 months */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
+              {MONTHS.map((mName, mi) => {
+                const firstDay = new Date(leaveCalYear, mi, 1)
+                const daysInMonth = new Date(leaveCalYear, mi + 1, 0).getDate()
+                const startDow = (firstDay.getDay() + 6) % 7 // Mon=0
+                const cells: (number | null)[] = Array(startDow).fill(null)
+                for (let d = 1; d <= daysInMonth; d++) cells.push(d)
+                const today = new Date().toISOString().slice(0,10)
+
+                return (
+                  <div key={mi} style={{ background: C.card, borderRadius: 10, padding: '0.6rem' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: C.text, marginBottom: 4, textAlign: 'center' }}>{mName}</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1 }}>
+                      {['M','T','W','T','F','S','S'].map((d,i) => <div key={i} style={{ fontSize: '0.55rem', textAlign: 'center', color: C.muted, fontWeight: 600 }}>{d}</div>)}
+                      {cells.map((day, ci) => {
+                        if (day === null) return <div key={`e${ci}`} />
+                        const dateStr = `${leaveCalYear}-${String(mi+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+                        const entries = leaveDays[dateStr] || []
+                        const isToday = dateStr === today
+                        const hasApproved = entries.some(e => e.status === 'APPROVED')
+                        const hasRequested = entries.some(e => e.status === 'REQUESTED')
+                        const bgColor = hasApproved ? C.green + '40' : hasRequested ? C.amber + '30' : 'transparent'
+                        const dotColor = hasApproved ? C.green : hasRequested ? C.amber : ''
+                        const title = entries.map(e => `${e.staffName} (${typeLabel[e.type] || e.type} - ${e.status})`).join('\n')
+
+                        return (
+                          <div key={dateStr} title={title} style={{
+                            width: '100%', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '0.6rem', borderRadius: 3, background: bgColor,
+                            color: isToday ? C.accent : entries.length > 0 ? C.text : C.muted,
+                            fontWeight: isToday ? 800 : entries.length > 0 ? 600 : 400,
+                            border: isToday ? `1px solid ${C.accent}` : 'none',
+                            position: 'relative', cursor: entries.length > 0 ? 'help' : 'default',
+                          }}>
+                            {day}
+                            {dotColor && <div style={{ position: 'absolute', bottom: 1, width: 3, height: 3, borderRadius: '50%', background: dotColor }} />}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Leave requests table */}
+            <div style={{ background: C.card, borderRadius: 12, overflow: 'hidden' }}>
+              <div style={{ padding: '0.75rem 1rem', borderBottom: `1px solid ${C.border}30`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: C.text }}>Leave Requests — {leaveCalYear}</span>
+                <span style={{ fontSize: '0.7rem', color: C.muted }}>{leaveCalData.length} total</span>
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead><tr><th style={thStyle}>Staff</th><th style={thStyle}>Type</th><th style={thStyle}>From</th><th style={thStyle}>To</th><th style={thStyle}>Days</th><th style={thStyle}>Reason</th><th style={thStyle}>Status</th><th style={thStyle}>Actions</th></tr></thead>
+                <tbody>
+                  {leaveCalData.map((lv: any) => {
+                    const days = Math.max(1, Math.ceil((new Date(lv.end_datetime).getTime() - new Date(lv.start_datetime).getTime()) / 86400000))
+                    return (
+                      <tr key={lv.id} onMouseEnter={e => (e.currentTarget.style.background = C.cardAlt)} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                        <td style={{ ...tdStyle, fontWeight: 600 }}>{lv.staff_name}</td>
+                        <td style={tdStyle}>{typeLabel[lv.leave_type] || lv.leave_type}</td>
+                        <td style={tdStyle}>{new Date(lv.start_datetime).toLocaleDateString('en-GB')}</td>
+                        <td style={tdStyle}>{new Date(lv.end_datetime).toLocaleDateString('en-GB')}</td>
+                        <td style={tdStyle}>{days}</td>
+                        <td style={{ ...tdStyle, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lv.reason || '—'}</td>
+                        <td style={tdStyle}><span style={badgeStyle(statusColor[lv.status] || C.muted)}>{lv.status}</span></td>
+                        <td style={tdStyle}>
+                          {lv.status === 'REQUESTED' && (
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <button style={{ ...btnSm, background: C.green, color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem' }} onClick={() => handleLeaveAction(lv.id, 'approve')}>Approve</button>
+                              <button style={{ ...btnSm, background: C.red, color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem' }} onClick={() => handleLeaveAction(lv.id, 'reject')}>Reject</button>
+                            </div>
+                          )}
+                          {lv.status === 'APPROVED' && (
+                            <button style={{ ...btnGhost, ...btnSm }} onClick={() => handleLeaveAction(lv.id, 'cancel')}>Cancel</button>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                  {leaveCalData.length === 0 && <tr><td colSpan={8} style={emptyStyle}>No leave requests for {leaveCalYear}</td></tr>}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Request Leave Modal */}
+            {showLeaveForm && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} onClick={() => setShowLeaveForm(false)}>
+                <div onClick={e => e.stopPropagation()} style={{ maxWidth: 480, width: '100%', padding: '2rem', background: C.cardAlt, borderRadius: 16, color: C.text }}>
+                  <h2 style={{ margin: '0 0 1rem', color: C.text }}>Request Leave</h2>
+                  {leaveError && <div style={{ background: '#7f1d1d', color: '#fca5a5', padding: '0.6rem 1rem', borderRadius: 10, marginBottom: 12, fontSize: '0.85rem' }}>{leaveError}</div>}
+                  <div style={{ display: 'grid', gap: 12 }}>
+                    <div>
+                      <label style={labelStyle}>Staff Member *</label>
+                      <select value={leaveForm.staff_member} onChange={e => setLeaveForm({ ...leaveForm, staff_member: e.target.value })} style={inputStyle}>
+                        <option value="" style={{ background: C.bg, color: C.text }}>Select staff…</option>
+                        {staff.map((s: any) => <option key={s.id} value={s.id} style={{ background: C.bg, color: C.text }}>{s.display_name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Leave Type</label>
+                      <select value={leaveForm.leave_type} onChange={e => setLeaveForm({ ...leaveForm, leave_type: e.target.value })} style={inputStyle}>
+                        <option value="ANNUAL" style={{ background: C.bg, color: C.text }}>Annual Leave</option>
+                        <option value="SICK" style={{ background: C.bg, color: C.text }}>Sick Leave</option>
+                        <option value="UNPAID" style={{ background: C.bg, color: C.text }}>Unpaid Leave</option>
+                        <option value="OTHER" style={{ background: C.bg, color: C.text }}>Other</option>
+                      </select>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div>
+                        <label style={labelStyle}>Start Date *</label>
+                        <input type="date" value={leaveForm.start_date} onChange={e => setLeaveForm({ ...leaveForm, start_date: e.target.value })} style={inputStyle} />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>End Date *</label>
+                        <input type="date" value={leaveForm.end_date} onChange={e => setLeaveForm({ ...leaveForm, end_date: e.target.value })} style={inputStyle} />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Reason</label>
+                      <input value={leaveForm.reason} onChange={e => setLeaveForm({ ...leaveForm, reason: e.target.value })} placeholder="Optional reason" style={inputStyle} />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
+                    <button style={btnGhost} onClick={() => setShowLeaveForm(false)}>Cancel</button>
+                    <button style={btnPrimary} onClick={handleRequestLeave} disabled={leaveSaving}>{leaveSaving ? 'Submitting…' : 'Submit Request'}</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {tab === 'training' && (
         <div style={{ background: C.card, borderRadius: 12, overflow: 'hidden' }}>
