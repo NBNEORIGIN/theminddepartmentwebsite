@@ -262,19 +262,61 @@ def seed_vault(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def storage_debug(request):
-    """Debug endpoint to check storage configuration."""
+    """Debug endpoint to check storage configuration and test R2 connectivity."""
+    import ssl
+    import sys
     from django.conf import settings
     from django.core.files.storage import default_storage
+
     info = {
         'storage_backend': default_storage.__class__.__name__,
         'media_url': settings.MEDIA_URL,
         'has_r2_keys': bool(getattr(settings, 'R2_ACCESS_KEY_ID', '')),
         'r2_endpoint': getattr(settings, 'R2_ENDPOINT_URL', 'not set'),
-        'r2_bucket': getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'not set'),
+        'r2_bucket': getattr(settings, 'R2_BUCKET_NAME', 'not set'),
         'r2_public_url': getattr(settings, 'R2_PUBLIC_URL', 'not set'),
-        'aws_custom_domain': getattr(settings, 'AWS_S3_CUSTOM_DOMAIN', 'not set'),
+        'python_version': sys.version,
+        'openssl_version': ssl.OPENSSL_VERSION,
     }
-    # Try a small write test
+
+    # Test 1: Raw HTTPS connection to R2 endpoint
+    endpoint = getattr(settings, 'R2_ENDPOINT_URL', '')
+    if endpoint:
+        try:
+            import urllib.request
+            req = urllib.request.Request(endpoint, method='GET')
+            resp = urllib.request.urlopen(req, timeout=10)
+            info['https_test'] = f'OK - status {resp.status}'
+        except Exception as e:
+            info['https_test'] = str(e)
+
+    # Test 2: Raw boto3 client test
+    r2_key = getattr(settings, 'R2_ACCESS_KEY_ID', '')
+    r2_secret = getattr(settings, 'R2_SECRET_ACCESS_KEY', '')
+    if r2_key and r2_secret and endpoint:
+        try:
+            import boto3
+            from botocore.config import Config
+            client = boto3.client(
+                's3',
+                endpoint_url=endpoint,
+                aws_access_key_id=r2_key,
+                aws_secret_access_key=r2_secret,
+                region_name='auto',
+                config=Config(
+                    signature_version='s3v4',
+                    s3={'addressing_style': 'path'},
+                ),
+            )
+            buckets = client.list_buckets()
+            info['boto3_test'] = f"OK - {len(buckets.get('Buckets', []))} buckets"
+            info['bucket_names'] = [b['Name'] for b in buckets.get('Buckets', [])]
+        except Exception as e:
+            import traceback
+            info['boto3_test'] = str(e)
+            info['boto3_traceback'] = traceback.format_exc()
+
+    # Test 3: django-storages write test
     try:
         from django.core.files.base import ContentFile
         path = default_storage.save('_test_r2.txt', ContentFile(b'hello r2'))
@@ -283,9 +325,8 @@ def storage_debug(request):
         info['write_test'] = 'OK'
         info['test_url'] = url
     except Exception as e:
-        import traceback
-        info['write_test'] = f'FAILED: {e}'
-        info['write_traceback'] = traceback.format_exc()
+        info['write_test'] = str(e)
+
     return Response(info)
 
 
