@@ -161,23 +161,26 @@ if R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY and R2_ENDPOINT_URL:
     STORAGES = {
         "default": {
             "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+            "OPTIONS": {
+                "bucket_name": R2_BUCKET_NAME,
+                "access_key": R2_ACCESS_KEY_ID,
+                "secret_key": R2_SECRET_ACCESS_KEY,
+                "endpoint_url": R2_ENDPOINT_URL,
+                "region_name": "auto",
+                "default_acl": None,
+                "querystring_auth": False,
+                "file_overwrite": False,
+                "signature_version": "s3v4",
+                "addressing_style": "path",
+                "custom_domain": R2_PUBLIC_URL.replace('https://', '').replace('http://', '').rstrip('/') if R2_PUBLIC_URL else None,
+            },
         },
         "staticfiles": {
             "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
         },
     }
-    AWS_ACCESS_KEY_ID = R2_ACCESS_KEY_ID
-    AWS_SECRET_ACCESS_KEY = R2_SECRET_ACCESS_KEY
-    AWS_STORAGE_BUCKET_NAME = R2_BUCKET_NAME
-    AWS_S3_ENDPOINT_URL = R2_ENDPOINT_URL
-    AWS_S3_REGION_NAME = 'auto'
-    AWS_DEFAULT_ACL = None
-    AWS_QUERYSTRING_AUTH = False
-    AWS_S3_FILE_OVERWRITE = False
-    AWS_S3_SIGNATURE_VERSION = 's3v4'
     # Public URL for serving files (R2 public bucket URL)
     if R2_PUBLIC_URL:
-        AWS_S3_CUSTOM_DOMAIN = R2_PUBLIC_URL.replace('https://', '').replace('http://', '').rstrip('/')
         MEDIA_URL = f'{R2_PUBLIC_URL.rstrip("/")}/'
     else:
         MEDIA_URL = f'{R2_ENDPOINT_URL.rstrip("/")}/{R2_BUCKET_NAME}/'
