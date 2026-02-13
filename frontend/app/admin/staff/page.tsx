@@ -464,8 +464,39 @@ export default function AdminStaffPage() {
         </div>
       )}
 
-      {tab === 'timesheets' && (
+      {tab === 'timesheets' && (() => {
+        const tsTotals = timesheets.reduce((acc: any, ts: any) => {
+          acc.scheduled += ts.scheduled_hours || 0
+          acc.actual += ts.actual_hours || 0
+          acc.count += 1
+          if (ts.status === 'APPROVED' || ts.status === 'WORKED' || ts.actual_start) acc.worked += 1
+          if (ts.status === 'ABSENT') acc.absent += 1
+          if (ts.status === 'SICK') acc.sick += 1
+          return acc
+        }, { scheduled: 0, actual: 0, count: 0, worked: 0, absent: 0, sick: 0 })
+        const tsVariance = tsTotals.actual - tsTotals.scheduled
+
+        return (
         <>
+          {/* KPI Summary */}
+          {timesheets.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.6rem', marginBottom: '1rem' }}>
+              {[
+                { label: 'Scheduled Hrs', value: `${tsTotals.scheduled.toFixed(1)}h`, color: C.accent },
+                { label: 'Actual Hrs', value: `${tsTotals.actual.toFixed(1)}h`, color: C.green },
+                { label: 'Variance', value: `${tsVariance > 0 ? '+' : ''}${tsVariance.toFixed(1)}h`, color: tsVariance < 0 ? C.red : tsVariance > 0 ? C.green : C.muted },
+                { label: 'Entries', value: String(tsTotals.count), color: C.muted },
+                { label: 'Days Worked', value: String(tsTotals.worked), color: C.green },
+                { label: 'Absent / Sick', value: String(tsTotals.absent + tsTotals.sick), color: tsTotals.absent + tsTotals.sick > 0 ? C.red : C.muted },
+              ].map(k => (
+                <div key={k.label} style={{ background: C.card, borderRadius: 10, padding: '0.75rem', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 700, color: k.color }}>{k.value}</div>
+                  <div style={{ fontSize: '0.65rem', color: C.muted, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{k.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 16 }}>
             <div>
               <label style={labelStyle}>From</label>
@@ -554,7 +585,8 @@ export default function AdminStaffPage() {
             </table>
           </div>
         </>
-      )}
+        )
+      })()}
 
       {tab === 'shifts' && (
         <>
