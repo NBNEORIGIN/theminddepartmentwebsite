@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { getChannels, getMessages, sendMessage as apiSendMessage, getCurrentUser, getMediaUrl, isImageFile, isVideoFile } from '@/lib/api'
+import { ensureGeneralChannel, getChannels, getMessages, sendMessage as apiSendMessage, getCurrentUser, getMediaUrl, isImageFile, isVideoFile } from '@/lib/api'
 
 const C = {
   bg: '#0f172a', card: '#1e293b', cardAlt: '#273548', text: '#f8fafc', muted: '#94a3b8',
@@ -26,28 +26,13 @@ export default function ChatPage() {
   const init = useCallback(async () => {
     setLoading(true)
     setError('')
-    let ensuredChannel: any = null
-    try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('nbne_access') : null
-      const base = process.env.NEXT_PUBLIC_API_BASE || 'https://theminddepartment-api.fly.dev/api'
-      const ensureRes = await fetch(`${base}/comms/ensure-general/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      })
-      if (ensureRes.ok) {
-        ensuredChannel = await ensureRes.json()
-      } else {
-        console.warn('ensure-general failed:', ensureRes.status)
-      }
-    } catch (e) {
-      console.warn('ensure-general error:', e)
-    }
+    const ensureRes = await ensureGeneralChannel()
+    const ensuredChannel = ensureRes.data
     const r = await getChannels()
     const chs = r.data || []
     if (chs.length > 0) setChannel(chs[0])
     else if (ensuredChannel?.id) setChannel(ensuredChannel)
-    else if (r.error) setError(`Chat service unavailable \u2014 the backend may be redeploying. ${r.error}`)
-    else setError('Chat is being set up. Please try again in a moment.')
+    else setError(r.error || ensureRes.error || 'Chat is being set up. Please try again in a moment.')
     setLoading(false)
   }, [])
 

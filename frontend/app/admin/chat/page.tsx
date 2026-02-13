@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { getChannels, getMessages, sendMessage as apiSendMessage, getCurrentUser, getMediaUrl, isImageFile, isVideoFile } from '@/lib/api'
+import { ensureGeneralChannel, getChannels, getMessages, sendMessage as apiSendMessage, getCurrentUser, getMediaUrl, isImageFile, isVideoFile } from '@/lib/api'
 
 const C = {
   bg: '#0f172a', card: '#1e293b', cardAlt: '#273548', text: '#f8fafc', muted: '#94a3b8',
@@ -28,34 +28,18 @@ export default function AdminChatPage() {
   const init = useCallback(async () => {
     setLoading(true)
     setError('')
-    let ensuredChannel: any = null
-    // Try to ensure general channel exists
-    try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('nbne_access') : null
-      const base = process.env.NEXT_PUBLIC_API_BASE || 'https://theminddepartment-api.fly.dev/api'
-      const ensureRes = await fetch(`${base}/comms/ensure-general/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      })
-      if (ensureRes.ok) {
-        ensuredChannel = await ensureRes.json()
-      } else {
-        console.warn('ensure-general failed:', ensureRes.status)
-      }
-    } catch (e) {
-      console.warn('ensure-general error:', e)
-    }
+    // Ensure general channel exists (goes through proxy)
+    const ensureRes = await ensureGeneralChannel()
+    const ensuredChannel = ensureRes.data
+    // Load channels list
     const r = await getChannels()
     const chs = r.data || []
     if (chs.length > 0) {
       setChannel(chs[0])
     } else if (ensuredChannel?.id) {
-      // Fallback: use the channel returned by ensure-general
       setChannel(ensuredChannel)
-    } else if (r.error) {
-      setError(`Chat service unavailable — the backend may be redeploying. ${r.error}`)
     } else {
-      setError('Chat is being set up. Please try again in a moment.')
+      setError(r.error || ensureRes.error || 'Chat is being set up. Please try again in a moment.')
     }
     setLoading(false)
   }, [])

@@ -690,6 +690,10 @@ export function isVideoFile(filename: string): boolean {
 }
 
 // --- Comms ---
+export async function ensureGeneralChannel() {
+  return apiFetch<any>('/comms/ensure-general/', { method: 'POST' })
+}
+
 export async function getChannels() {
   return apiFetch<any[]>('/comms/channels/')
 }
