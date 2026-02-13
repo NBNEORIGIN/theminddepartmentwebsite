@@ -46,6 +46,8 @@ export default function AdminDocumentsPage() {
   const [uploading, setUploading] = useState(false)
   const [editDoc, setEditDoc] = useState<any>(null)
   const [toast, setToast] = useState('')
+  const [viewMode, setViewMode] = useState<'grid' | 'folders'>('folders')
+  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set())
   const fileRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
@@ -100,6 +102,29 @@ export default function AdminDocumentsPage() {
     setShowUpload(true)
   }
 
+  function toggleFolder(key: string) {
+    setCollapsedFolders(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  function getGroupedDocs() {
+    const groups: Record<string, any[]> = {}
+    for (const cat of CATEGORIES) {
+      if (!cat.key) continue
+      groups[cat.key] = []
+    }
+    for (const doc of docs) {
+      const key = doc.category || 'GENERAL'
+      if (!groups[key]) groups[key] = []
+      groups[key].push(doc)
+    }
+    return groups
+  }
+
   function fmtDate(d: string | null) {
     if (!d) return '—'
     return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -148,7 +173,7 @@ export default function AdminDocumentsPage() {
         </div>
       )}
 
-      {/* Category Tabs + Search */}
+      {/* Category Tabs + Search + View Toggle */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: '1rem' }}>
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', flex: 1 }}>
           {CATEGORIES.map(cat => (
@@ -162,6 +187,18 @@ export default function AdminDocumentsPage() {
             </button>
           ))}
         </div>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <button onClick={() => setViewMode('folders')} title="Folder view" style={{
+            padding: '0.35rem 0.55rem', borderRadius: 8, border: `1px solid ${viewMode === 'folders' ? C.accent : C.border}`,
+            background: viewMode === 'folders' ? C.accent + '20' : 'transparent',
+            color: viewMode === 'folders' ? C.accent : C.muted, fontSize: '0.8rem', cursor: 'pointer',
+          }}>📂</button>
+          <button onClick={() => setViewMode('grid')} title="Grid view" style={{
+            padding: '0.35rem 0.55rem', borderRadius: 8, border: `1px solid ${viewMode === 'grid' ? C.accent : C.border}`,
+            background: viewMode === 'grid' ? C.accent + '20' : 'transparent',
+            color: viewMode === 'grid' ? C.accent : C.muted, fontSize: '0.8rem', cursor: 'pointer',
+          }}>▦</button>
+        </div>
         <input
           value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search documents…"
@@ -169,7 +206,7 @@ export default function AdminDocumentsPage() {
         />
       </div>
 
-      {/* Document Grid */}
+      {/* Document List */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: C.muted }}>Loading documents…</div>
       ) : docs.length === 0 ? (
@@ -180,7 +217,85 @@ export default function AdminDocumentsPage() {
             {activeCategory || search ? 'Try a different filter or search term.' : 'Upload your first document to get started.'}
           </div>
         </div>
+      ) : viewMode === 'folders' ? (
+        /* ── Folder View ── */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {(() => {
+            const grouped = getGroupedDocs()
+            return CATEGORIES.filter(c => c.key).map(cat => {
+              const catDocs = grouped[cat.key] || []
+              if (activeCategory && activeCategory !== cat.key) return null
+              if (catDocs.length === 0 && activeCategory) return null
+              const isCollapsed = collapsedFolders.has(cat.key)
+              const catColor = CAT_COLORS[cat.key] || C.muted
+              return (
+                <div key={cat.key} style={{ background: C.card, borderRadius: 10, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
+                  {/* Folder header */}
+                  <button onClick={() => toggleFolder(cat.key)} style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '0.65rem 1rem',
+                    background: 'none', border: 'none', cursor: 'pointer', color: C.text, textAlign: 'left' as const,
+                  }}>
+                    <span style={{ fontSize: '1.1rem' }}>{isCollapsed ? '📁' : '📂'}</span>
+                    <span style={{ fontWeight: 700, fontSize: '0.85rem', flex: 1 }}>{cat.icon} {cat.label}</span>
+                    <span style={badge(catColor)}>{catDocs.length} {catDocs.length === 1 ? 'doc' : 'docs'}</span>
+                    <span style={{ fontSize: '0.7rem', color: C.muted, transition: 'transform 0.2s', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}>▼</span>
+                  </button>
+                  {/* Folder contents */}
+                  {!isCollapsed && (
+                    <div style={{ borderTop: `1px solid ${C.border}` }}>
+                      {catDocs.length === 0 ? (
+                        <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.75rem', color: C.muted }}>No documents in this category</div>
+                      ) : (
+                        catDocs.map((doc: any) => {
+                          const st = doc.status || 'VALID'
+                          return (
+                            <div key={doc.id} style={{
+                              display: 'flex', alignItems: 'flex-start', gap: 10, padding: '0.6rem 1rem',
+                              borderBottom: `1px solid ${C.border}22`,
+                              opacity: st === 'MISSING' ? 0.7 : 1,
+                            }}>
+                              {/* Doc icon */}
+                              <span style={{ fontSize: '1rem', marginTop: 2, flexShrink: 0 }}>{doc.file_url ? '📄' : '📋'}</span>
+                              {/* Doc info */}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: '0.8rem', fontWeight: 600, lineHeight: 1.35, wordBreak: 'break-word' as const, overflowWrap: 'anywhere' as const }}>{doc.title}</div>
+                                {doc.description && (
+                                  <div style={{ fontSize: '0.65rem', color: C.muted, marginTop: 2, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>{doc.description}</div>
+                                )}
+                                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
+                                  <span style={badge(STATUS_COLORS[st] || C.muted)}>{STATUS_LABELS[st] || st}</span>
+                                  <span style={badge(ACCESS_COLORS[doc.access_level] || C.muted)}>{doc.access_level}+</span>
+                                  {doc.file_size_display && <span style={{ fontSize: '0.6rem', color: C.muted, alignSelf: 'center' }}>{doc.file_size_display}</span>}
+                                  {doc.expiry_date && (
+                                    <span style={{ fontSize: '0.6rem', color: doc.is_expired ? C.red : doc.is_expiring_soon ? C.amber : C.green, fontWeight: 600, alignSelf: 'center' }}>
+                                      Exp: {fmtDate(doc.expiry_date)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              {/* Actions */}
+                              <div style={{ display: 'flex', gap: 2, flexShrink: 0, alignItems: 'center' }}>
+                                {doc.file_url ? (
+                                  <a href={getMediaUrl(doc.file_url)} target="_blank" rel="noopener" style={{ fontSize: '0.75rem', color: C.accent, textDecoration: 'none', padding: '2px 6px' }} title="Download">📎</a>
+                                ) : doc.is_placeholder ? (
+                                  <button onClick={() => openEdit(doc)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', color: C.amber, padding: '2px 6px' }} title="Upload">📤</button>
+                                ) : null}
+                                <button onClick={() => openEdit(doc)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', color: C.muted, padding: '2px 4px' }} title="Edit">✏️</button>
+                                <button onClick={() => handleDelete(doc.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', color: C.red, padding: '2px 4px' }} title="Delete">🗑️</button>
+                              </div>
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })
+          })()}
+        </div>
       ) : (
+        /* ── Grid View ── */
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
           {docs.map((doc: any) => {
             const st = doc.status || 'VALID'
@@ -193,8 +308,8 @@ export default function AdminDocumentsPage() {
                 transition: 'border-color 0.15s',
               }}>
                 {/* Title row */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                  <h3 style={{ fontSize: '0.85rem', fontWeight: 700, margin: 0, lineHeight: 1.3, flex: 1 }}>{doc.title}</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, minWidth: 0 }}>
+                  <h3 style={{ fontSize: '0.85rem', fontWeight: 700, margin: 0, lineHeight: 1.3, flex: 1, minWidth: 0, wordBreak: 'break-word' as const, overflowWrap: 'anywhere' as const }}>{doc.title}</h3>
                   <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                     <button onClick={() => openEdit(doc)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', color: C.muted, padding: 2 }} title="Edit">✏️</button>
                     <button onClick={() => handleDelete(doc.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', color: C.red, padding: 2 }} title="Delete">🗑️</button>
