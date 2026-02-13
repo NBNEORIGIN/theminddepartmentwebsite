@@ -25,6 +25,9 @@ class Lead(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='NEW')
     value_pence = models.IntegerField(default=0, help_text='Estimated value in pence')
     notes = models.TextField(blank=True)
+    tags = models.CharField(max_length=500, blank=True, help_text='Comma-separated tags e.g. VIP,Lapsed')
+    follow_up_date = models.DateField(null=True, blank=True)
+    last_contact_date = models.DateField(null=True, blank=True)
     # Link to booking client if auto-created
     client_id = models.IntegerField(null=True, blank=True, help_text='bookings.Client FK')
     created_at = models.DateTimeField(auto_now_add=True)

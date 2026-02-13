@@ -809,6 +809,10 @@ export async function updateLeadStatus(id: number, status: string) {
   return apiFetch<any>(`/crm/leads/${id}/status/`, { method: 'POST', body: JSON.stringify({ status }) })
 }
 
+export async function updateLead(id: number, data: Record<string, any>) {
+  return apiFetch<any>(`/crm/leads/${id}/status/`, { method: 'POST', body: JSON.stringify(data) })
+}
+
 // --- Smart Dashboard ---
 export async function getDashboardSummary() {
   return apiFetch<any>('/dashboard-summary/')

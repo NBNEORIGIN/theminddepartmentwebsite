@@ -18,6 +18,9 @@ def _serialize_lead(lead):
         'status': lead.status,
         'value_pence': lead.value_pence,
         'notes': lead.notes,
+        'tags': lead.tags,
+        'follow_up_date': lead.follow_up_date.isoformat() if lead.follow_up_date else None,
+        'last_contact_date': lead.last_contact_date.isoformat() if lead.last_contact_date else None,
         'client_id': lead.client_id,
         'created_at': lead.created_at.isoformat(),
         'updated_at': lead.updated_at.isoformat(),
@@ -67,6 +70,18 @@ def update_lead_status(request, lead_id):
         lead.value_pence = int(request.data['value_pence'])
     if 'source' in request.data:
         lead.source = request.data['source']
+    if 'tags' in request.data:
+        lead.tags = request.data['tags']
+    if 'follow_up_date' in request.data:
+        lead.follow_up_date = request.data['follow_up_date'] or None
+    if 'last_contact_date' in request.data:
+        lead.last_contact_date = request.data['last_contact_date'] or None
+    if 'name' in request.data:
+        lead.name = request.data['name']
+    if 'email' in request.data:
+        lead.email = request.data['email']
+    if 'phone' in request.data:
+        lead.phone = request.data['phone']
     lead.save()
     return Response(_serialize_lead(lead))
 
