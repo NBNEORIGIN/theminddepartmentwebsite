@@ -13,7 +13,7 @@ class StaffScheduleSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = StaffSchedule
-        fields = ['id', 'staff', 'staff_name', 'day_of_week', 'is_working', 'start_time', 'end_time']
+        fields = ['id', 'staff', 'staff_name', 'day_of_week', 'is_working', 'start_time', 'end_time', 'break_minutes']
 
 
 class ClosureSerializer(serializers.ModelSerializer):

@@ -24,6 +24,7 @@ from bookings.views_intake import IntakeProfileViewSet, IntakeWellbeingDisclaime
 from bookings.views_payment import ClassPackageViewSet, ClientCreditViewSet, PaymentIntegrationViewSet
 from bookings.views_stripe import create_checkout_session, stripe_webhook
 from bookings.views_dashboard import dashboard_summary, backfill_sbe
+from bookings.views_working_hours import working_hours_list, working_hours_bulk_set, working_hours_delete
 from bookings.views_reports import reports_overview, reports_daily, reports_monthly, reports_staff, reports_insights, reports_staff_hours, reports_staff_hours_csv, reports_leave
 from bookings.views_demo import demo_seed_view, demo_status_view
 from bookings.views_demo_availability import demo_availability_seed_view
@@ -75,6 +76,10 @@ urlpatterns = [
     path('api/checkout/webhook/', stripe_webhook, name='stripe-webhook'),
     path('api/compliance/', include('compliance.urls')),
     path('api/crm/', include('crm.urls')),
+    # Working hours
+    path('api/staff/working-hours/', working_hours_list, name='working-hours-list'),
+    path('api/staff/working-hours/bulk-set/', working_hours_bulk_set, name='working-hours-bulk-set'),
+    path('api/staff/working-hours/<int:pk>/delete/', working_hours_delete, name='working-hours-delete'),
     path('api/dashboard-summary/', dashboard_summary, name='dashboard-summary'),
     path('api/backfill-sbe/', backfill_sbe, name='backfill-sbe'),
     path('api/reports/overview/', reports_overview, name='reports-overview'),

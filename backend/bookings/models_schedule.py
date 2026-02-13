@@ -46,10 +46,10 @@ class StaffSchedule(models.Model):
     is_working = models.BooleanField(default=True)
     start_time = models.TimeField(default='09:00')
     end_time = models.TimeField(default='17:00')
+    break_minutes = models.IntegerField(default=0)
     
     class Meta:
         ordering = ['staff', 'day_of_week']
-        unique_together = ['staff', 'day_of_week']
         verbose_name = 'Staff Schedule'
     
     def __str__(self):
