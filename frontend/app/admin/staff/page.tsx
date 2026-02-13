@@ -410,7 +410,7 @@ export default function AdminStaffPage() {
             <label style={labelStyle}>Select Staff Member</label>
             <select style={{ ...inputStyle, maxWidth: 300 }} value={whStaffId || ''} onChange={e => { const id = Number(e.target.value); if (id) loadWorkingHours(id) }}>
               <option value="" style={{ background: C.bg, color: C.text }}>Choose staff…</option>
-              {staff.map((s: any) => <option key={s.id} value={s.id} style={{ background: C.bg, color: C.text }}>{s.display_name}</option>)}
+              {staff.map((s: any) => <option key={s.id} value={s.id} style={{ background: C.bg, color: C.text }}>{s.display_name || s.name}</option>)}
             </select>
           </div>
           {whStaffId && (
@@ -479,7 +479,7 @@ export default function AdminStaffPage() {
               <label style={labelStyle}>Staff</label>
               <select style={inputStyle} value={tsStaffFilter} onChange={e => setTsStaffFilter(e.target.value)}>
                 <option value="" style={{ background: C.bg, color: C.text }}>All Staff</option>
-                {staff.map((s: any) => <option key={s.id} value={s.id} style={{ background: C.bg, color: C.text }}>{s.display_name}</option>)}
+                {staff.map((s: any) => <option key={s.id} value={s.id} style={{ background: C.bg, color: C.text }}>{s.display_name || s.name}</option>)}
               </select>
             </div>
             <button style={{ ...btnPrimary, ...btnSm }} onClick={() => loadTimesheets()}>Load</button>
@@ -722,7 +722,7 @@ export default function AdminStaffPage() {
                       <label style={labelStyle}>Staff Member *</label>
                       <select value={leaveForm.staff_member} onChange={e => setLeaveForm({ ...leaveForm, staff_member: e.target.value })} style={inputStyle}>
                         <option value="" style={{ background: C.bg, color: C.text }}>Select staff…</option>
-                        {staff.map((s: any) => <option key={s.id} value={s.id} style={{ background: C.bg, color: C.text }}>{s.display_name}</option>)}
+                        {staff.map((s: any) => <option key={s.id} value={s.id} style={{ background: C.bg, color: C.text }}>{s.display_name || s.name}</option>)}
                       </select>
                     </div>
                     <div>
@@ -845,7 +845,7 @@ export default function AdminStaffPage() {
                 <label style={labelStyle}>Staff Member *</label>
                 <select value={shiftForm.staff} onChange={e => setShiftForm({ ...shiftForm, staff: e.target.value })} style={inputStyle}>
                   <option value="" style={{ background: C.bg, color: C.text }}>Select staff…</option>
-                  {staff.map((s: any) => <option key={s.id} value={s.id} style={{ background: C.bg, color: C.text }}>{s.display_name}</option>)}
+                  {staff.map((s: any) => <option key={s.id} value={s.id} style={{ background: C.bg, color: C.text }}>{s.display_name || s.name}</option>)}
                 </select>
               </div>
               <div>
