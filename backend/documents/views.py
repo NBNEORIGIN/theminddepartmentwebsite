@@ -310,6 +310,16 @@ def storage_debug(request):
         except Exception as e:
             info['requests_test'] = str(e)
 
+        # Test 1e: Try the public R2 dev URL
+        pub_url = getattr(settings, 'R2_PUBLIC_URL', '')
+        if pub_url:
+            try:
+                import requests as req_lib
+                r = req_lib.get(pub_url, timeout=10)
+                info['pub_url_test'] = f'OK - status {r.status_code}'
+            except Exception as e:
+                info['pub_url_test'] = str(e)
+
         # Test 1d: Raw socket TLS test
         try:
             from urllib.parse import urlparse
