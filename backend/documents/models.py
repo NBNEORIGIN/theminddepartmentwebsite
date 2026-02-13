@@ -36,7 +36,7 @@ class Document(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, default='')
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='GENERAL', db_index=True)
-    file = models.FileField(upload_to='documents/%Y/%m/', null=True, blank=True)
+    file = models.FileField(upload_to='vault/%Y/%m/', null=True, blank=True)
     filename = models.CharField(max_length=255, blank=True, default='')
     content_type = models.CharField(max_length=100, blank=True, default='')
     size_bytes = models.PositiveIntegerField(default=0)

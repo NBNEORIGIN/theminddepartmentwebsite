@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const BACKEND_URL = (process.env.DJANGO_BACKEND_URL || 'http://localhost:8000').trim()
+const BACKEND_URL = (process.env.DJANGO_BACKEND_URL || 'http://localhost:8000').trim().replace(/\/$/, '')
 
 /**
  * Proxy media/document file requests to the Django backend.
- * Routes /api/files/documents/2026/02/file.pdf → DJANGO_BACKEND_URL/documents/2026/02/file.pdf
+ * Routes /api/files/media/vault/2026/02/file.pdf → DJANGO_BACKEND_URL/media/vault/2026/02/file.pdf
  */
 async function proxyMedia(req: NextRequest) {
   const url = new URL(req.url)
@@ -16,10 +16,16 @@ async function proxyMedia(req: NextRequest) {
     const auth = req.headers.get('authorization')
     if (auth) headers['Authorization'] = auth
 
-    const res = await fetch(target, { method: 'GET', headers })
+    let res = await fetch(target, { method: 'GET', headers })
+
+    // Fallback: if path doesn't start with /media/, try with /media/ prefix
+    if (!res.ok && !path.startsWith('/media/')) {
+      const fallback = `${BACKEND_URL}/media${path}${url.search}`
+      res = await fetch(fallback, { method: 'GET', headers })
+    }
 
     if (!res.ok) {
-      return new NextResponse(`File not found`, { status: res.status })
+      return new NextResponse('File not found', { status: res.status })
     }
 
     const body = await res.arrayBuffer()
