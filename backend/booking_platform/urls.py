@@ -70,6 +70,15 @@ urlpatterns = [
     # Tenant/branding alias (frontend expects /api/tenant/branding/)
     path('api/tenant/branding/', include('core.api_urls_branding')),
     path('api/tenant/', include('core.api_urls_tenant')),
+    # Working hours (must be before DRF router so /api/staff/working-hours/ isn't caught by StaffViewSet)
+    path('api/staff/working-hours/', working_hours_list, name='working-hours-list'),
+    path('api/staff/working-hours/bulk-set/', working_hours_bulk_set, name='working-hours-bulk-set'),
+    path('api/staff/working-hours/<int:pk>/delete/', working_hours_delete, name='working-hours-delete'),
+    # Timesheets (must be before DRF router)
+    path('api/staff/timesheets/', timesheets_list, name='timesheets-list'),
+    path('api/staff/timesheets/generate/', timesheets_generate, name='timesheets-generate'),
+    path('api/staff/timesheets/summary/', timesheets_summary, name='timesheets-summary'),
+    path('api/staff/timesheets/<int:pk>/update/', timesheets_update, name='timesheets-update'),
     # DRF router
     path('api/', include(router.urls)),
     path('api/', include('core.api_urls')),
@@ -77,15 +86,6 @@ urlpatterns = [
     path('api/checkout/webhook/', stripe_webhook, name='stripe-webhook'),
     path('api/compliance/', include('compliance.urls')),
     path('api/crm/', include('crm.urls')),
-    # Working hours
-    path('api/staff/working-hours/', working_hours_list, name='working-hours-list'),
-    path('api/staff/working-hours/bulk-set/', working_hours_bulk_set, name='working-hours-bulk-set'),
-    path('api/staff/working-hours/<int:pk>/delete/', working_hours_delete, name='working-hours-delete'),
-    # Timesheets
-    path('api/staff/timesheets/', timesheets_list, name='timesheets-list'),
-    path('api/staff/timesheets/generate/', timesheets_generate, name='timesheets-generate'),
-    path('api/staff/timesheets/summary/', timesheets_summary, name='timesheets-summary'),
-    path('api/staff/timesheets/<int:pk>/update/', timesheets_update, name='timesheets-update'),
     path('api/dashboard-summary/', dashboard_summary, name='dashboard-summary'),
     path('api/backfill-sbe/', backfill_sbe, name='backfill-sbe'),
     path('api/reports/overview/', reports_overview, name='reports-overview'),
