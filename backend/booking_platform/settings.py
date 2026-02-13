@@ -47,7 +47,6 @@ INSTALLED_APPS = [
     "crm",
     "comms",
     "documents",
-    "storages",
 ]
 
 MIDDLEWARE = [
@@ -147,44 +146,14 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
 # Media files (uploads)
-MEDIA_ROOT = BASE_DIR / 'media'
-
-# Cloudflare R2 storage (S3-compatible) — if configured, use R2 for all media uploads
-R2_ACCESS_KEY_ID = config('R2_ACCESS_KEY_ID', default='')
-R2_SECRET_ACCESS_KEY = config('R2_SECRET_ACCESS_KEY', default='')
-R2_ENDPOINT_URL = config('R2_ENDPOINT_URL', default='')
-R2_BUCKET_NAME = config('R2_BUCKET_NAME', default='documents')
-R2_PUBLIC_URL = config('R2_PUBLIC_URL', default='')
-
-if R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY and R2_ENDPOINT_URL:
-    # Use R2 for media storage
-    STORAGES = {
-        "default": {
-            "BACKEND": "documents.storage.R2Storage",
-            "OPTIONS": {
-                "bucket_name": R2_BUCKET_NAME,
-                "access_key": R2_ACCESS_KEY_ID,
-                "secret_key": R2_SECRET_ACCESS_KEY,
-                "endpoint_url": R2_ENDPOINT_URL,
-                "region_name": "auto",
-                "default_acl": None,
-                "querystring_auth": False,
-                "file_overwrite": False,
-                "custom_domain": R2_PUBLIC_URL.replace('https://', '').replace('http://', '').rstrip('/') if R2_PUBLIC_URL else None,
-            },
-        },
-        "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-        },
-    }
-    # Public URL for serving files (R2 public bucket URL)
-    if R2_PUBLIC_URL:
-        MEDIA_URL = f'{R2_PUBLIC_URL.rstrip("/")}/'
-    else:
-        MEDIA_URL = f'{R2_ENDPOINT_URL.rstrip("/")}/{R2_BUCKET_NAME}/'
+# On Railway, use a persistent volume mounted at /data/media.
+# Locally, fall back to ./media in the project directory.
+MEDIA_VOLUME_PATH = config('MEDIA_VOLUME_PATH', default='')
+if MEDIA_VOLUME_PATH:
+    MEDIA_ROOT = MEDIA_VOLUME_PATH
 else:
-    # Local filesystem storage (dev / fallback)
-    MEDIA_URL = '/media/'
+    MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_URL = '/media/'
 
 # Whitenoise config
 WHITENOISE_USE_FINDERS = True
