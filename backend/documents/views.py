@@ -290,6 +290,43 @@ def storage_debug(request):
         except Exception as e:
             info['https_test'] = str(e)
 
+        # Test 1b: Try with explicit TLS 1.2 context
+        try:
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            req2 = urllib.request.Request(endpoint, method='GET')
+            resp2 = urllib.request.urlopen(req2, timeout=10, context=ctx)
+            info['https_tls12_test'] = f'OK - status {resp2.status}'
+        except Exception as e:
+            info['https_tls12_test'] = str(e)
+
+        # Test 1c: Try with requests library
+        try:
+            import requests as req_lib
+            r = req_lib.get(endpoint, timeout=10, verify=False)
+            info['requests_test'] = f'OK - status {r.status_code}'
+        except Exception as e:
+            info['requests_test'] = str(e)
+
+        # Test 1d: Raw socket TLS test
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(endpoint)
+            host = parsed.hostname
+            port = parsed.port or 443
+            ctx3 = ssl.create_default_context()
+            ctx3.check_hostname = False
+            ctx3.verify_mode = ssl.CERT_NONE
+            import socket
+            with socket.create_connection((host, port), timeout=10) as sock:
+                with ctx3.wrap_socket(sock, server_hostname=host) as ssock:
+                    info['raw_tls_test'] = f'OK - {ssock.version()}'
+                    info['tls_cipher'] = str(ssock.cipher())
+        except Exception as e:
+            info['raw_tls_test'] = str(e)
+
     # Test 2: Raw boto3 client test
     r2_key = getattr(settings, 'R2_ACCESS_KEY_ID', '')
     r2_secret = getattr(settings, 'R2_SECRET_ACCESS_KEY', '')
