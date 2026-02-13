@@ -160,7 +160,7 @@ if R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY and R2_ENDPOINT_URL:
     # Use R2 for media storage
     STORAGES = {
         "default": {
-            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+            "BACKEND": "documents.storage.R2Storage",
             "OPTIONS": {
                 "bucket_name": R2_BUCKET_NAME,
                 "access_key": R2_ACCESS_KEY_ID,
@@ -170,9 +170,6 @@ if R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY and R2_ENDPOINT_URL:
                 "default_acl": None,
                 "querystring_auth": False,
                 "file_overwrite": False,
-                "signature_version": "s3v4",
-                "addressing_style": "path",
-                "verify": False,
                 "custom_domain": R2_PUBLIC_URL.replace('https://', '').replace('http://', '').rstrip('/') if R2_PUBLIC_URL else None,
             },
         },
