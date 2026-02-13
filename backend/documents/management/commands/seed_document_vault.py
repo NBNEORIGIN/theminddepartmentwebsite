@@ -190,31 +190,37 @@ class Command(BaseCommand):
     help = 'Seed the Document Vault with UK legal document requirements for small businesses'
 
     def handle(self, *args, **options):
-        # Create tags
-        for tag_data in TAGS:
-            DocumentTag.objects.get_or_create(
-                name=tag_data['name'],
-                defaults={'colour': tag_data['colour']}
-            )
-        self.stdout.write(f'  Tags: {DocumentTag.objects.count()}')
+        import traceback
+        try:
+            # Create tags
+            for tag_data in TAGS:
+                DocumentTag.objects.get_or_create(
+                    name=tag_data['name'],
+                    defaults={'colour': tag_data['colour']}
+                )
+            self.stdout.write(f'  Tags: {DocumentTag.objects.count()}')
 
-        # Create placeholder documents
-        created = 0
-        for doc_data in UK_REQUIRED_DOCUMENTS:
-            _, was_created = Document.objects.get_or_create(
-                title=doc_data['title'],
-                defaults={
-                    'category': doc_data['category'],
-                    'description': doc_data['description'],
-                    'regulatory_ref': doc_data.get('regulatory_ref', ''),
-                    'access_level': doc_data.get('access_level', 'staff'),
-                    'is_placeholder': True,
-                }
-            )
-            if was_created:
-                created += 1
+            # Create placeholder documents
+            created = 0
+            for doc_data in UK_REQUIRED_DOCUMENTS:
+                _, was_created = Document.objects.get_or_create(
+                    title=doc_data['title'],
+                    defaults={
+                        'category': doc_data['category'],
+                        'description': doc_data['description'],
+                        'regulatory_ref': doc_data.get('regulatory_ref', ''),
+                        'access_level': doc_data.get('access_level', 'staff'),
+                        'is_placeholder': True,
+                    }
+                )
+                if was_created:
+                    created += 1
 
-        total = Document.objects.count()
-        self.stdout.write(self.style.SUCCESS(
-            f'  Document Vault: {created} new placeholders created ({total} total documents)'
-        ))
+            total = Document.objects.count()
+            self.stdout.write(self.style.SUCCESS(
+                f'  Document Vault: {created} new placeholders created ({total} total documents)'
+            ))
+        except Exception as e:
+            self.stderr.write(self.style.ERROR(f'  seed_document_vault FAILED: {e}'))
+            traceback.print_exc()
+            raise
