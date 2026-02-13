@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "bookings",
     "compliance",
     "crm",
+    "comms",
 ]
 
 MIDDLEWARE = [

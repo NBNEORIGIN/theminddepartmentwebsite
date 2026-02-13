@@ -86,6 +86,7 @@ urlpatterns = [
     path('api/checkout/webhook/', stripe_webhook, name='stripe-webhook'),
     path('api/compliance/', include('compliance.urls')),
     path('api/crm/', include('crm.urls')),
+    path('api/comms/', include('comms.urls')),
     path('api/dashboard-summary/', dashboard_summary, name='dashboard-summary'),
     path('api/backfill-sbe/', backfill_sbe, name='backfill-sbe'),
     path('api/reports/overview/', reports_overview, name='reports-overview'),
