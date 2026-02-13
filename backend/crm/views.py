@@ -118,33 +118,37 @@ def export_leads_csv(request):
 @permission_classes([AllowAny])
 def sync_from_bookings(request):
     """POST /api/crm/sync/ — Create leads from booking clients that don't already exist"""
-    from bookings.models import Client, Booking
+    import traceback
+    try:
+        from bookings.models import Client, Booking
 
-    created_count = 0
-    for client in Client.objects.all():
-        if Lead.objects.filter(client_id=client.id).exists():
-            continue
-        # Calculate total booking value for this client
-        total_pence = 0
-        bookings = Booking.objects.filter(client=client, status__in=['confirmed', 'completed'])
-        for b in bookings:
-            if b.service:
-                total_pence += b.service.price_pence
+        created_count = 0
+        for client in Client.objects.all():
+            if Lead.objects.filter(client_id=client.id).exists():
+                continue
+            # Calculate total booking value for this client
+            total_pence = 0
+            bookings = Booking.objects.filter(client=client, status__in=['confirmed', 'completed'])
+            for b in bookings:
+                if b.service:
+                    total_pence += b.service.price_pence
 
-        lead_status = 'CONVERTED' if bookings.filter(status='completed').exists() else 'NEW'
-        if bookings.filter(status='confirmed').exists() and lead_status == 'NEW':
-            lead_status = 'QUALIFIED'
+            lead_status = 'CONVERTED' if bookings.filter(status='completed').exists() else 'NEW'
+            if bookings.filter(status='confirmed').exists() and lead_status == 'NEW':
+                lead_status = 'QUALIFIED'
 
-        Lead.objects.create(
-            name=client.name,
-            email=client.email,
-            phone=client.phone,
-            source='booking',
-            status=lead_status,
-            value_pence=total_pence,
-            notes=f'Auto-imported from bookings. {bookings.count()} booking(s).',
-            client_id=client.id,
-        )
-        created_count += 1
+            Lead.objects.create(
+                name=client.name,
+                email=client.email,
+                phone=client.phone,
+                source='booking',
+                status=lead_status,
+                value_pence=total_pence,
+                notes=f'Auto-imported from bookings. {bookings.count()} booking(s).',
+                client_id=client.id,
+            )
+            created_count += 1
 
-    return Response({'created': created_count, 'message': f'{created_count} leads synced from bookings'})
+        return Response({'created': created_count, 'message': f'{created_count} leads synced from bookings'})
+    except Exception as e:
+        return Response({'error': str(e), 'traceback': traceback.format_exc()}, status=500)
