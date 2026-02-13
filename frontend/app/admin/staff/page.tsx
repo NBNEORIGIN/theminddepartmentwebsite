@@ -313,7 +313,10 @@ export default function AdminStaffPage() {
     if (tsStaffFilter) data.staff_id = Number(tsStaffFilter)
     const res = await generateTimesheets(data)
     if (res.error) alert(res.error)
-    else alert(res.data?.detail || 'Timesheets generated.')
+    else {
+      const dbg = res.data?.debug ? `\n\nDebug: schedules_found=${res.data.debug.schedules_found}, staff_filter=${res.data.debug.staff_id_filter}, staff_ids=[${res.data.debug.staff_in_schedule_map}], skipped=${res.data.debug.skipped}` : ''
+      alert((res.data?.detail || 'Timesheets generated.') + dbg)
+    }
     setTsGenerating(false)
     loadTimesheets()
   }
