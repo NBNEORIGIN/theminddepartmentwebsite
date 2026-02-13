@@ -28,6 +28,7 @@ export default function AdminChatPage() {
   const init = useCallback(async () => {
     setLoading(true)
     setError('')
+    let ensuredChannel: any = null
     // Try to ensure general channel exists
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('nbne_access') : null
@@ -36,7 +37,9 @@ export default function AdminChatPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       })
-      if (!ensureRes.ok) {
+      if (ensureRes.ok) {
+        ensuredChannel = await ensureRes.json()
+      } else {
         console.warn('ensure-general failed:', ensureRes.status)
       }
     } catch (e) {
@@ -46,6 +49,9 @@ export default function AdminChatPage() {
     const chs = r.data || []
     if (chs.length > 0) {
       setChannel(chs[0])
+    } else if (ensuredChannel?.id) {
+      // Fallback: use the channel returned by ensure-general
+      setChannel(ensuredChannel)
     } else if (r.error) {
       setError(`Chat service unavailable — the backend may be redeploying. ${r.error}`)
     } else {
