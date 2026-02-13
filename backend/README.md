@@ -1,171 +1,71 @@
-# NBNE Booking Platform - Django
+# The Mind Department — Backend API
 
-Single-tenant booking platform built with Django and PostgreSQL for Windows deployment.
+Django REST API powering The Mind Department booking and business management platform.
 
-## Why Django?
+## Apps
 
-Switched from Next.js to Django for:
-- **Native Windows support** - No Docker required
-- **Reliable PostgreSQL** - No authentication issues
-- **Lower resources** - Runs on old PC
-- **Built-in admin** - Config management UI
-- **Simpler deployment** - Windows Server ready
+| App | Purpose |
+|-----|---------|
+| `booking_platform` | Django project config, URL routing, settings |
+| `core` | Config model, JWT auth views, password tokens, owner invite |
+| `bookings` | Services, staff, clients, bookings, schedules, availability, intake, payments, SBE, reminders |
+| `compliance` | UK HSE compliance items, categories, scoring, signals |
+| `crm` | Lead management, booking sync |
+| `comms` | Communications module |
+| `documents` | Document vault with tagging |
+
+## Management Commands
+
+| Command | Description |
+|---------|-------------|
+| `setup_production` | Create default users, services, disclaimers, packages |
+| `invite_owner` | Create owner account and send invite email |
+| `seed_compliance` | Seed UK HSE baseline compliance items |
+| `seed_document_vault` | Create default document placeholders |
+| `sync_crm_leads` | Sync CRM leads from booking clients |
+| `update_demand_index` | Update service demand scoring |
+| `backfill_sbe_scores` | Backfill Smart Booking Engine risk scores |
+| `send_booking_reminders` | Send 24h/1h booking reminder emails (supports `--loop`) |
+
+## API Endpoints
+
+### Auth (`/api/auth/`)
+- `POST /login/` — JWT login
+- `GET /me/` — Current user info
+- `POST /me/set-password/` — Change password (authenticated)
+- `POST /password-reset/` — Request reset email
+- `GET /validate-token/` — Check token validity
+- `POST /set-password-token/` — Set password via token
+- `POST /invite/` — Resend owner invite
+
+### Bookings (`/api/bookings/`)
+- Services, staff, clients, bookings CRUD
+- Availability and slot generation
+- Dashboard summary
+- Reports (revenue, utilisation, retention)
+- Intake profiles and disclaimers
+- Schedule management (business hours, closures, leave)
+- Timesheets
+
+### CRM (`/api/crm/`)
+- Leads CRUD, sync from bookings
+
+### Compliance (`/api/compliance/`)
+- Items, categories, dashboard, calendar, CSV export
+
+### Documents (`/api/documents/`)
+- Document vault CRUD, tagging
 
 ## Quick Start
 
-### Prerequisites
-
-- Python 3.11+
-- PostgreSQL 16 (native Windows install)
-
-### Installation
-
 ```bash
-# Clone repository
-git clone <repo-url>
-cd nbne-booking-django
-
-# Create virtual environment
-python -m venv venv
-venv\Scripts\activate
-
-# Install dependencies
 pip install -r requirements.txt
-
-# Configure environment
-copy .env.example .env
-# Edit .env with your database credentials
-
-# Setup database
+cp .env.example .env
 python manage.py migrate
-python manage.py createsuperuser
-python manage.py loaddata initial_config
-
-# Run development server
+python manage.py setup_production
 python manage.py runserver
 ```
 
-Access at: **http://localhost:8000**
+## Deployment
 
-## Tech Stack
-
-- **Backend**: Django 5.2
-- **Database**: PostgreSQL 16
-- **Task Queue**: Celery + Redis
-- **Frontend**: Django templates + HTMX
-- **Static Files**: Whitenoise
-- **WSGI Server**: Waitress (Windows) / Gunicorn (Linux)
-
-## Features
-
-- ✅ Loop 1: Django + PostgreSQL baseline
-- ⏳ Loop 2: Backup/restore scripts
-- ⏳ Loop 3: Instance bootstrap
-- ⏳ Loop 4: Config system (Django admin)
-- ⏳ Loop 5: Booking data model
-- ⏳ Loop 6: Slot generation API
-- ⏳ Loop 7: Sessions listing API
-- ⏳ Loop 8: House of Hair UI
-- ⏳ Loop 9: Mind Dept UI
-- ⏳ Loop 10: Email worker (Celery)
-- ⏳ Loop 11: SMS scaffold
-- ⏳ Loop 12: Client portal
-- ⏳ Loop 13: GDPR + security
-
-## Project Structure
-
-```
-nbne-booking-django/
-├── booking_platform/      # Django project settings
-│   ├── settings.py
-│   ├── urls.py
-│   └── wsgi.py
-├── core/                  # Core app (config, health)
-│   ├── models.py
-│   ├── views.py
-│   └── admin.py
-├── bookings/              # Bookings app
-│   ├── models.py
-│   ├── views.py
-│   └── admin.py
-├── templates/             # HTML templates
-├── static/                # CSS, JS, images
-├── scripts/               # Backup/bootstrap scripts
-├── requirements.txt       # Python dependencies
-└── manage.py              # Django management
-```
-
-## Windows Deployment
-
-### Development (Old PC)
-
-```bash
-# Install PostgreSQL for Windows
-# Download from postgresql.org
-
-# Run Django
-python manage.py runserver 0.0.0.0:8000
-```
-
-### Production (Windows Server)
-
-```bash
-# Install dependencies
-pip install -r requirements.txt
-pip install waitress
-
-# Collect static files
-python manage.py collectstatic
-
-# Run with Waitress
-waitress-serve --port=8000 booking_platform.wsgi:application
-```
-
-### IIS Deployment (Optional)
-
-Use `wfastcgi` for IIS integration:
-```bash
-pip install wfastcgi
-wfastcgi-enable
-```
-
-## Database Setup (Windows)
-
-1. Install PostgreSQL 16 for Windows
-2. Create database:
-```sql
-CREATE DATABASE booking_db;
-CREATE USER booking_user WITH PASSWORD 'your_password';
-GRANT ALL PRIVILEGES ON DATABASE booking_db TO booking_user;
-```
-
-3. Update `.env` with credentials
-4. Run migrations: `python manage.py migrate`
-
-## Creating Client Instances
-
-```bash
-# Run bootstrap script
-python scripts/create_instance.py house-of-hair D:\clients\house-of-hair
-
-# Each instance gets:
-# - Own database
-# - Own .env config
-# - Own static files
-# - Config-driven branding
-```
-
-## Admin Panel
-
-Access Django admin at: **http://localhost:8000/admin**
-
-Manage:
-- Configuration (branding, features)
-- Bookings
-- Clients
-- Services
-- Staff
-
-## License
-
-MIT
+Deployed on Railway. See root `README.md` for full deployment guide.
