@@ -16,9 +16,10 @@ Including another URLconf
 """
 
 from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
+from django.http import FileResponse, Http404
+import os
 from rest_framework.routers import DefaultRouter
 from bookings.api_views import ServiceViewSet, StaffViewSet, BookingViewSet, ClientViewSet, StaffBlockViewSet
 from bookings.views_schedule import BusinessHoursViewSet, StaffScheduleViewSet, ClosureViewSet, StaffLeaveViewSet
@@ -110,5 +111,13 @@ urlpatterns = [
     path('', include('core.urls')),
 ]
 
-# Serve media files (uploads) in all environments
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+def serve_media(request, path):
+    """Serve uploaded media files in all environments (static() only works with DEBUG=True)."""
+    file_path = os.path.join(settings.MEDIA_ROOT, path)
+    if os.path.isfile(file_path):
+        return FileResponse(open(file_path, 'rb'))
+    raise Http404('File not found')
+
+urlpatterns += [
+    path('media/<path:path>', serve_media, name='serve-media'),
+]
