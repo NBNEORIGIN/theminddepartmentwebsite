@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "crm",
     "comms",
     "documents",
+    "storages",
 ]
 
 MIDDLEWARE = [
@@ -146,8 +147,43 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
 # Media files (uploads)
-MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Cloudflare R2 storage (S3-compatible) — if configured, use R2 for all media uploads
+R2_ACCESS_KEY_ID = config('R2_ACCESS_KEY_ID', default='')
+R2_SECRET_ACCESS_KEY = config('R2_SECRET_ACCESS_KEY', default='')
+R2_ENDPOINT_URL = config('R2_ENDPOINT_URL', default='')
+R2_BUCKET_NAME = config('R2_BUCKET_NAME', default='documents')
+R2_PUBLIC_URL = config('R2_PUBLIC_URL', default='')
+
+if R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY and R2_ENDPOINT_URL:
+    # Use R2 for media storage
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+    AWS_ACCESS_KEY_ID = R2_ACCESS_KEY_ID
+    AWS_SECRET_ACCESS_KEY = R2_SECRET_ACCESS_KEY
+    AWS_STORAGE_BUCKET_NAME = R2_BUCKET_NAME
+    AWS_S3_ENDPOINT_URL = R2_ENDPOINT_URL
+    AWS_S3_REGION_NAME = 'auto'
+    AWS_DEFAULT_ACL = None
+    AWS_QUERYSTRING_AUTH = False
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_S3_SIGNATURE_VERSION = 's3v4'
+    # Public URL for serving files (R2 public bucket URL)
+    if R2_PUBLIC_URL:
+        AWS_S3_CUSTOM_DOMAIN = R2_PUBLIC_URL.replace('https://', '').replace('http://', '').rstrip('/')
+        MEDIA_URL = f'{R2_PUBLIC_URL.rstrip("/")}/'
+    else:
+        MEDIA_URL = f'{R2_ENDPOINT_URL.rstrip("/")}/{R2_BUCKET_NAME}/'
+else:
+    # Local filesystem storage (dev / fallback)
+    MEDIA_URL = '/media/'
 
 # Whitenoise config
 WHITENOISE_USE_FINDERS = True
