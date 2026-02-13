@@ -104,7 +104,6 @@ def timesheets_generate(request):
     )
 
     created_count = 0
-    skipped_existing = 0
     current = d_from
     while current <= d_to:
         dow = current.weekday()  # Monday=0
@@ -112,7 +111,6 @@ def timesheets_generate(request):
             if dow in days:
                 for sched in days[dow]:
                     if (sid, current) in existing:
-                        skipped_existing += 1
                         continue
                     # Create timesheet entry
                     sched_start = timezone.make_aware(
@@ -134,18 +132,7 @@ def timesheets_generate(request):
                     existing.add((sid, current))
         current += timedelta(days=1)
 
-    return Response({
-        'detail': f'{created_count} timesheet entries generated.',
-        'debug': {
-            'date_from': d_from.isoformat(),
-            'date_to': d_to.isoformat(),
-            'staff_id_filter': staff_id,
-            'schedules_found': schedules_qs.count(),
-            'staff_in_schedule_map': list(schedule_map.keys()),
-            'existing_entries': len(existing) - created_count,
-            'skipped': skipped_existing,
-        }
-    })
+    return Response({'detail': f'{created_count} timesheet entries generated.'})
 
 
 @api_view(['GET'])

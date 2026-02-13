@@ -313,10 +313,7 @@ export default function AdminStaffPage() {
     if (tsStaffFilter) data.staff_id = Number(tsStaffFilter)
     const res = await generateTimesheets(data)
     if (res.error) alert(res.error)
-    else {
-      const dbg = res.data?.debug ? `\n\nDebug: schedules_found=${res.data.debug.schedules_found}, staff_filter=${res.data.debug.staff_id_filter}, staff_ids=[${res.data.debug.staff_in_schedule_map}], skipped=${res.data.debug.skipped}` : ''
-      alert((res.data?.detail || 'Timesheets generated.') + dbg)
-    }
+    else alert(res.data?.detail || 'Timesheets generated.')
     setTsGenerating(false)
     loadTimesheets()
   }
@@ -324,8 +321,8 @@ export default function AdminStaffPage() {
   const openEditTs = (ts: any) => {
     setEditingTs(ts)
     setTsForm({
-      actual_start: ts.actual_start?.slice(0, 5) || ts.scheduled_start?.slice(0, 5) || '',
-      actual_end: ts.actual_end?.slice(0, 5) || ts.scheduled_end?.slice(0, 5) || '',
+      actual_start: (ts.actual_start || ts.scheduled_start || '').slice(11, 16) || '',
+      actual_end: (ts.actual_end || ts.scheduled_end || '').slice(11, 16) || '',
       actual_break_minutes: ts.actual_break_minutes ?? ts.scheduled_break_minutes ?? 0,
       status: ts.status || 'SCHEDULED',
       notes: ts.notes || '',
@@ -533,17 +530,18 @@ export default function AdminStaffPage() {
               <thead><tr><th style={thStyle}>Date</th><th style={thStyle}>Staff</th><th style={thStyle}>Sched. Start</th><th style={thStyle}>Sched. End</th><th style={thStyle}>Sched. Hrs</th><th style={thStyle}>Actual Start</th><th style={thStyle}>Actual End</th><th style={thStyle}>Actual Hrs</th><th style={thStyle}>Variance</th><th style={thStyle}>Status</th><th style={thStyle}>Actions</th></tr></thead>
               <tbody>
                 {timesheets.map((ts: any) => {
-                  const variance = ts.variance_hours || 0
-                  const statusColor: Record<string, string> = { WORKED: C.green, SCHEDULED: C.muted, LATE: C.amber, LEFT_EARLY: C.amber, ABSENT: C.red, SICK: C.red, HOLIDAY: C.blue, AMENDED: C.blue }
+                  const variance = ts.variance != null ? ts.variance : 0
+                  const fmtTime = (v: string | null) => v ? v.slice(11, 16) || v.slice(0, 5) : '—'
+                  const statusColor: Record<string, string> = { WORKED: C.green, DRAFT: C.muted, SCHEDULED: C.muted, SUBMITTED: C.amber, APPROVED: C.green, LATE: C.amber, LEFT_EARLY: C.amber, ABSENT: C.red, SICK: C.red, HOLIDAY: C.blue, AMENDED: C.blue }
                   return (
                     <tr key={ts.id}>
                       <td style={{ ...tdStyle, fontWeight: 600 }}>{ts.date}</td>
                       <td style={tdStyle}>{ts.staff_name}</td>
-                      <td style={tdStyle}>{ts.scheduled_start?.slice(0, 5) || '—'}</td>
-                      <td style={tdStyle}>{ts.scheduled_end?.slice(0, 5) || '—'}</td>
+                      <td style={tdStyle}>{fmtTime(ts.scheduled_start)}</td>
+                      <td style={tdStyle}>{fmtTime(ts.scheduled_end)}</td>
                       <td style={tdStyle}>{ts.scheduled_hours ? `${Number(ts.scheduled_hours).toFixed(1)}h` : '—'}</td>
-                      <td style={tdStyle}>{ts.actual_start?.slice(0, 5) || '—'}</td>
-                      <td style={tdStyle}>{ts.actual_end?.slice(0, 5) || '—'}</td>
+                      <td style={tdStyle}>{fmtTime(ts.actual_start)}</td>
+                      <td style={tdStyle}>{fmtTime(ts.actual_end)}</td>
                       <td style={tdStyle}>{ts.actual_hours ? `${Number(ts.actual_hours).toFixed(1)}h` : '—'}</td>
                       <td style={{ ...tdStyle, color: variance < 0 ? C.red : variance > 0 ? C.green : C.muted, fontWeight: variance !== 0 ? 600 : 400 }}>{variance !== 0 ? `${variance > 0 ? '+' : ''}${variance.toFixed(1)}h` : '—'}</td>
                       <td style={tdStyle}><span style={badgeStyle(statusColor[ts.status] || C.muted)}>{ts.status_display || ts.status}</span></td>
