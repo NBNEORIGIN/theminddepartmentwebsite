@@ -343,7 +343,8 @@ export default function AdminStaffPage() {
 
   const tabLabels: Record<string, string> = { profiles: 'Profiles', hours: 'Working Hours', timesheets: 'Timesheets', shifts: 'Shifts', leave: 'Leave', training: 'Training' }
 
-  const inputStyle: React.CSSProperties = { width: '100%', padding: '0.4rem 0.5rem', borderRadius: 6, border: `1px solid ${C.border}`, background: C.bg, color: C.text, fontSize: '0.85rem', colorScheme: 'dark' }
+  const selectFix = { WebkitTextFillColor: C.text, opacity: 1 } as React.CSSProperties
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '0.4rem 0.5rem', borderRadius: 6, border: `1px solid ${C.border}`, background: C.bg, color: C.text, fontSize: '0.85rem', colorScheme: 'dark', ...selectFix }
   const labelStyle: React.CSSProperties = { fontSize: '0.8rem', color: C.muted, marginBottom: 2, display: 'block' }
   const btnStyle: React.CSSProperties = { padding: '0.45rem 1rem', borderRadius: 8, border: 'none', fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem', transition: 'opacity 0.15s' }
   const btnPrimary: React.CSSProperties = { ...btnStyle, background: C.accent, color: '#fff' }
