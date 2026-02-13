@@ -793,8 +793,55 @@ export async function getClients() {
 }
 
 // --- Documents ---
-export async function getDocuments() {
-  return apiFetch<any[]>('/documents/')
+export async function getDocuments(params?: { category?: string; search?: string; expired?: boolean; expiring?: boolean; placeholder?: boolean }) {
+  const qs = new URLSearchParams()
+  if (params?.category) qs.set('category', params.category)
+  if (params?.search) qs.set('search', params.search)
+  if (params?.expired) qs.set('expired', 'true')
+  if (params?.expiring) qs.set('expiring', 'true')
+  if (params?.placeholder) qs.set('placeholder', 'true')
+  const q = qs.toString()
+  return apiFetch<any[]>(`/documents/${q ? '?' + q : ''}`)
+}
+
+export async function getDocumentSummary() {
+  return apiFetch<any>('/documents/summary/')
+}
+
+export async function createDocument(formData: FormData) {
+  const token = getAccessToken()
+  const res = await fetch(`/api/django/documents/create/`, {
+    method: 'POST',
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: formData,
+  })
+  const data = await res.json()
+  if (!res.ok) return { data: null, error: data.detail || JSON.stringify(data) }
+  return { data, error: null }
+}
+
+export async function updateDocument(id: number, formData: FormData) {
+  const token = getAccessToken()
+  const res = await fetch(`/api/django/documents/${id}/`, {
+    method: 'PATCH',
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: formData,
+  })
+  const data = await res.json()
+  if (!res.ok) return { data: null, error: data.detail || JSON.stringify(data) }
+  return { data, error: null }
+}
+
+export async function deleteDocument(id: number) {
+  return apiFetch<any>(`/documents/${id}/`, { method: 'DELETE' })
+}
+
+export async function getExpiringDocuments() {
+  return apiFetch<any[]>('/documents/expiring/')
+}
+
+export async function getDocumentTags() {
+  return apiFetch<any[]>('/documents/tags/')
 }
 
 // --- CRM ---

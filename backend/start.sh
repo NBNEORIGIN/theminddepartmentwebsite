@@ -13,6 +13,9 @@ python manage.py setup_production
 echo "Seeding UK compliance baseline..."
 python manage.py seed_compliance
 
+echo "Seeding Document Vault..."
+python manage.py seed_document_vault
+
 echo "Syncing CRM leads from bookings..."
 python manage.py sync_crm_leads
 

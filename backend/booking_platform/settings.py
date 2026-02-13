@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "compliance",
     "crm",
     "comms",
+    "documents",
 ]
 
 MIDDLEWARE = [
